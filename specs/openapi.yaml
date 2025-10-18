@@ -1,0 +1,217 @@
+openapi: 3.0.0
+info:
+  title: Study Buddy
+  version: 1.0.0
+  description: Study Budy Api
+
+servers:
+  - url: https://localhost:3000
+    description: Local development server
+
+paths:
+  /user:
+    post:
+      summary: Create New User
+      operationId: postUser
+      tags:
+        - User
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+            example:
+              firstName: "Cornelius"
+              lastName: "Bartels"
+              email: "cjkb@gmail.com"
+              password: "test121111"
+
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "500":
+          description: Error creating user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerError"
+                
+    get:
+      summary: Return User Signed In
+      operationId: getUser
+      tags:
+        - User
+      security:
+        - bearerAuth:
+          - read:users
+          - public
+      responses:
+        "200":
+          description: Success
+          
+    patch:
+      summary: Update User details
+      operationId: updateUser
+      tags:
+        - User
+      security:
+        - bearerAuth:
+          - read:users
+          - public
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+            example:
+              firstName: "Cornelius"
+              lastName: "Bartels"
+              email: "cjkb@gmail.com"
+              password: "test121111"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+                
+    delete:
+      summary: Delete User
+      operationId: deleteUser
+      tags:
+        - User
+      security:
+        - bearerAuth:
+          - read:users
+          - public
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+          
+          
+  /user/sign-in:
+    post:
+      summary: Sign In
+      operationId: signIn
+      tags:
+        - User
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - email
+                - password
+            example:
+              email: "cjkb@gmail.com"
+              password: "test121111"
+        
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: B
+      
+  /user/sign-out:
+    post:
+      summary: Sign Out
+      operationId: signOut
+      tags:
+        - User
+      security:
+        - bearerAuth:
+          - read:users
+          - public
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+    
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - username
+        - email
+        - password
+      properties:
+        firstName:
+          type: string
+
+        lastName:
+          type: string
+
+        username:
+          type: string
+          minLength: 4
+
+        email:
+          type: string
+
+        password:
+          type: string
+          minLength: 8
+
+    BadRequestError:
+      type: object
+      properties:
+        name:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+
+    InternalServerError:
+      type: object
+      properties:
+        name:
+          type: string
+        message:
+          type: string
+          
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: jwt
+
