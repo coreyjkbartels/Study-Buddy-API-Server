@@ -110,6 +110,21 @@ userSchema.statics.findByCredentials = async (email, password) => {
     return user
 }
 
+userSchema.statics.findPublicUser = async function (id) {
+    const user = await User.find(
+        { _id: id },
+        {
+            _id: 1,
+            userName: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+        }
+    );
+
+    return user;
+};
+
 userSchema.pre('save', async function (next) {
     const user = this
 
