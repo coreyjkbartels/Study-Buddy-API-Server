@@ -40,6 +40,24 @@ const userSchema = new Schema({
         }
     },
 
+    friends: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: false,
+    }],
+
+    incomingFriendRequests: [{
+        type: Schema.Types.ObjectId,
+        ref: 'FriendRequest',
+        required: false,
+    }],
+
+    outgoingFriendRequests: [{
+        type: Schema.Types.ObjectId,
+        ref: 'FriendRequest',
+        required: false,
+    }],
+
     tokens: [{
         token: {
             type: String,
