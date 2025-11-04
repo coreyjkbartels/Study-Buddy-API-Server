@@ -8,6 +8,9 @@ servers:
   - url: https://localhost:3000
     description: Local development server
 
+  - url: https://studdy-buddy-api-h7kw3.ondigitalocean.app/
+    description: Digital Ocean Server
+
 paths:
   /user:
     post:
@@ -20,11 +23,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/User"
-            example:
-              firstName: "Cornelius"
-              lastName: "Bartels"
-              email: "cjkb@gmail.com"
-              password: "test121111"
 
       responses:
         "201":
@@ -46,7 +44,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InternalServerError"
-                
+
     get:
       summary: Return User Signed In
       operationId: getUser
@@ -54,12 +52,12 @@ paths:
         - User
       security:
         - bearerAuth:
-          - read:users
-          - public
+            - read:users
+            - public
       responses:
         "200":
           description: Success
-          
+
     patch:
       summary: Update User details
       operationId: updateUser
@@ -67,18 +65,13 @@ paths:
         - User
       security:
         - bearerAuth:
-          - read:users
-          - public
+            - read:users
+            - public
       requestBody:
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/User"
-            example:
-              firstName: "Cornelius"
-              lastName: "Bartels"
-              email: "cjkb@gmail.com"
-              password: "test121111"
       responses:
         "200":
           description: Updated
@@ -93,7 +86,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
-                
+
     delete:
       summary: Delete User
       operationId: deleteUser
@@ -101,8 +94,8 @@ paths:
         - User
       security:
         - bearerAuth:
-          - read:users
-          - public
+            - read:users
+            - public
       responses:
         "200":
           description: Success
@@ -112,8 +105,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
-          
-          
+
   /user/sign-in:
     post:
       summary: Sign In
@@ -136,13 +128,13 @@ paths:
             example:
               email: "cjkb@gmail.com"
               password: "test121111"
-        
+
       responses:
         "200":
           description: Success
         "400":
           description: B
-      
+
   /user/sign-out:
     post:
       summary: Sign Out
@@ -151,8 +143,8 @@ paths:
         - User
       security:
         - bearerAuth:
-          - read:users
-          - public
+            - read:users
+            - public
       responses:
         "200":
           description: Success
@@ -162,7 +154,173 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
-    
+
+  /friends/requests/{friendId}:
+    post:
+      summary: Create Friend Request
+      operationId: postFriendRequest
+      tags:
+        - Friends
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          schema:
+            type: string
+          description: The receiver ID
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  /friends/requests/{requestId}:
+    patch:
+      summary: Handle Friend Request
+      operationId: handleFriendRequest
+      tags:
+        - Friends
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: The request ID
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+    delete:
+      summary: Delete Friend Request
+      operationId: deleteFriendRequest
+      tags:
+        - Friends
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: The request ID
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+  /friends/requests:
+    get:
+      summary: Get Friend Requests
+      operationId: getFriendRequests
+      tags:
+        - Friends
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendRequest"
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  /friends:
+    get:
+      summary: Get all Friends of User
+      operationId: getAllUserFriends
+      tags:
+        - Friends
+
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Friend"
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  /friends/{friendId}:
+    delete:
+      summary: Remove Friend
+      operationId: removeFriend
+      tags:
+        - Friends
+
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          schema:
+            type: string
+          description: The ID of friend being removed
+
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
 components:
   schemas:
     User:
@@ -191,6 +349,27 @@ components:
           type: string
           minLength: 8
 
+        friends:
+          type: array
+          items:
+            $ref: "#/components/schemas/Friend"
+
+        incomingFriendRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendRequest"
+
+        outgoingFriendRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendRequest"
+
+      example:
+        firstName: "Cornelius"
+        lastName: "Bartels"
+        email: "cjkb@gmail.com"
+        password: "test121111"
+
     BadRequestError:
       type: object
       properties:
@@ -208,10 +387,36 @@ components:
           type: string
         message:
           type: string
-          
+
+    FriendRequest:
+      type: object
+      required:
+        - sender
+        - receiver
+      properties:
+        sender:
+          $ref: "#/components/schemas/User"
+        receiver:
+          $ref: "#/components/schemas/User"
+        isAccepted:
+          type: boolean
+
+    Friend:
+      type: object
+      properties:
+        _id:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: jwt
-

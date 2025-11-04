@@ -7,9 +7,9 @@ import FriendRequest from '../models/friendRequest.js'
 const router = new Router()
 
 
-router.post('/friends/requests', auth, async (req, res) => {
+router.post('/friends/requests/:friendId', auth, async (req, res) => {
     try {
-        const friend = await User.findById(req.body.friendId)
+        const friend = await User.findById(req.params.friendId)
 
         if (!friend) {
             res.status(400).send({ Error: 'Bad Request' })
@@ -18,7 +18,7 @@ router.post('/friends/requests', auth, async (req, res) => {
 
         const data = {
             'sender': req.user._id,
-            'receiver': req.body.friendId
+            'receiver': req.params.friendId
         }
 
         const friendRequest = new FriendRequest(data)
@@ -241,7 +241,7 @@ router.get('/friends', auth, async (req, res) => {
 
 router.delete('/friends/:friendId', auth, async (req, res) => {
     try {
-        if (isValidObjectId(req.params.friendId)) {
+        if (!isValidObjectId(req.params.friendId)) {
             res.status(400).send({ Error: 'Invalid friend id' })
             return
         }
@@ -258,14 +258,8 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
 
         await User.updateOne(
             { _id: req.params.friendId },
-            { $pull: { friends: req.params.friendId } }
+            { $pull: { friends: req.user._id } }
         )
-
-        const friend = await User.getPublicProfile(req.params.friendId)
-
-        if (friend) {
-            res.status(200).send({ friend })
-        }
 
         res.status(200).send()
     } catch (error) {

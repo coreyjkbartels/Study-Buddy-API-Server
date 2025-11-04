@@ -1,4 +1,4 @@
-import {Schema, model} from 'mongoose'
+import { Schema, model } from 'mongoose'
 
 const friendRequestSchema = new Schema({
     sender: {
@@ -16,22 +16,22 @@ const friendRequestSchema = new Schema({
         required: false,
         default: false,
     }
-});
+})
 
 
 friendRequestSchema.statics.findByUser = async (user) => {
-    const incomingRequests = await FriendRequest.find({ receiver: user._id }).exec();
+    const incomingRequests = await FriendRequest.find({ receiver: user._id }).exec()
 
-    const outgoingRequests = await FriendRequest.find({ sender: user._id }).exec();
+    const outgoingRequests = await FriendRequest.find({ sender: user._id }).exec()
 
     const friendRequests = {
-        "incoming": incomingRequests,
-        "outgoing": outgoingRequests,
-    };
+        'incoming': incomingRequests,
+        'outgoing': outgoingRequests,
+    }
 
-    return friendRequests;
-};
+    return friendRequests
+}
 
-const FriendRequest = model('FriendRequest', friendRequestSchema);
+const FriendRequest = model('FriendRequest', friendRequestSchema)
 
-export default FriendRequest;
+export default FriendRequest
