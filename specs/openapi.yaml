@@ -321,6 +321,98 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
 
+  /chat:
+    post:
+      summary: Create a chat
+      operationId: createChat
+      tags:
+        - Chat
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Chat"
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  /chat/{chatId}:
+    get:
+      summary: Get chat by ID
+      operationId: getChat
+      tags:
+        - Chat
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+          description: The chat ID
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+    delete:
+      summary: Delete chat by ID
+      operationId: deleteChat
+      tags:
+        - Chat
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+          description: The chat ID
+
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
 components:
   schemas:
     User:
@@ -364,6 +456,11 @@ components:
           items:
             $ref: "#/components/schemas/FriendRequest"
 
+        chatSessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Chat"
+
       example:
         firstName: "Cornelius"
         lastName: "Bartels"
@@ -404,8 +501,6 @@ components:
     Friend:
       type: object
       properties:
-        _id:
-          type: string
         username:
           type: string
         firstName:
@@ -414,6 +509,30 @@ components:
           type: string
         email:
           type: string
+
+    Chat:
+      type: object
+      properties:
+        chatType:
+          type: string
+          enum:
+            - direct
+            - group
+        messageBuckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        groupName:
+          type: string
+        owner:
+          $ref: "#/components/schemas/User"
+
+      required:
+        - chatType
 
   securitySchemes:
     bearerAuth:
