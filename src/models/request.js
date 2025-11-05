@@ -22,8 +22,6 @@ const requestSchema = new Schema({
         default: false,
     },
 
-    timestamp: Date,
-
     group: {
         name: String,
         chatId: {
@@ -34,7 +32,7 @@ const requestSchema = new Schema({
             }
         }
     }
-})
+}, { timestamps: true })
 
 requestSchema.statics.findByUser = async (user) => {
     const incomingRequests = await Request.find({ receiver: user._id }).exec()

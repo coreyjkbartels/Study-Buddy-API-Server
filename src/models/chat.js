@@ -43,7 +43,7 @@ const chatSchema = new Schema({
             return this.chatType == 'group'
         }
     },
-})
+}, { timestamps: true })
 
 const Chat = model('Chat', chatSchema)
 

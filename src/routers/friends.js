@@ -4,6 +4,9 @@ import auth from '../middleware/auth.js'
 import { isValidObjectId } from 'mongoose'
 import Request from '../models/request.js'
 import Chat from '../models/chat.js'
+import MessageBucket from '../models/messageBucket.js'
+
+const MAX_NUM_MESSAGES = 5
 
 const router = new Router()
 
@@ -279,6 +282,41 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
     }
 })
 
+router.post('/friend/:friendId/message', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select({ friends: 1 })
+        const { friends } = user
+        const friend = friends.find((elm) => {
+            return elm.friendId == req.params.friendId
+        })
+
+        const data = {
+            'content': req.body.content,
+            'sender': req.user._id
+        }
+
+        let latestBucket = await MessageBucket.find({ chatId: friend.chatId }).sort({ updatedAt: -1 }).limit(1)
+
+        if (!latestBucket || latestBucket.length == MAX_NUM_MESSAGES) {
+            latestBucket = new MessageBucket({
+                'chatId': friend.chatId
+            })
+            await latestBucket.save()
+
+            await Chat.updateOne({ _id: friend.chatId },
+                { $push: { messageBuckets: latestBucket } })
+        }
+
+        console.log(latestBucket)
+        latestBucket.push({ messages: data })
+        // await latestBucket.save()
+
+        res.status(200).send(friend)
+
+    } catch (error) {
+        console.log(error)
+    }
+})
 
 
 export default router
