@@ -42,7 +42,53 @@ router.get('/user', auth, async (req, res) => {
     res.status(200).send({ user })
 })
 
+//Get Users
+router.get('/users', auth, async (req, res) => {
+    let filter = {}
 
+    if (req.query.q) {
+        filter = {
+            $or: [
+                { username: { $regex: req.query.q, $options: 'i' } },
+                { firstName: { $regex: req.query.q, $options: 'i' } },
+                { lastName: { $regex: req.query.q, $options: 'i' } }
+            ]
+        }
+    }
+
+    const users = await User.find(filter, { username: 1, firstName: 1, lastName: 1, _id: 1 })
+        .skip(parseInt(req.query.offset))
+        .limit(parseInt(req.query.limit))
+
+    res.status(200).send(users)
+})
+
+//Get User By Id
+router.get('/user/:userId', auth, async (req, res) => {
+    try {
+        const user = await User.findById(
+            { _id: req.params.userId },
+            {
+                _id: 1,
+                userName: 1,
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                courses: 1
+            }
+        )
+
+        if (!user) {
+            res.status(400).send({ Error: 'Invalid user id' })
+            return
+        }
+
+        res.status(200).send({ user })
+    } catch (error) {
+        console.log(error)
+        res.status(400).send({ Error: 'Bad Request' })
+    }
+})
 
 //Sign In
 router.post('/user/sign-in', async (req, res) => {
