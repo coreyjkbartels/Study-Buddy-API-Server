@@ -158,7 +158,7 @@ paths:
   /friends/requests/{friendId}:
     post:
       summary: Create Friend Request
-      operationId: postFriendRequest
+      operationId: postrequest
       tags:
         - Friends
       security:
@@ -185,7 +185,7 @@ paths:
   /friends/requests/{requestId}:
     patch:
       summary: Handle Friend Request
-      operationId: handleFriendRequest
+      operationId: handlerequest
       tags:
         - Friends
       security:
@@ -211,7 +211,7 @@ paths:
 
     delete:
       summary: Delete Friend Request
-      operationId: deleteFriendRequest
+      operationId: deleterequest
       tags:
         - Friends
       security:
@@ -237,7 +237,7 @@ paths:
   /friends/requests:
     get:
       summary: Get Friend Requests
-      operationId: getFriendRequests
+      operationId: getrequests
       tags:
         - Friends
       security:
@@ -253,7 +253,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/FriendRequest"
+                  $ref: "#/components/schemas/Request"
 
         "400":
           description: Bad request
@@ -446,15 +446,15 @@ components:
           items:
             $ref: "#/components/schemas/Friend"
 
-        incomingFriendRequests:
+        incomingRequests:
           type: array
           items:
-            $ref: "#/components/schemas/FriendRequest"
+            $ref: "#/components/schemas/Request"
 
-        outgoingFriendRequests:
+        outgoingRequests:
           type: array
           items:
-            $ref: "#/components/schemas/FriendRequest"
+            $ref: "#/components/schemas/Request"
 
         chatSessions:
           type: array
@@ -485,7 +485,7 @@ components:
         message:
           type: string
 
-    FriendRequest:
+    Request:
       type: object
       required:
         - sender

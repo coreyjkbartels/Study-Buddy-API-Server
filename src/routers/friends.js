@@ -2,7 +2,8 @@ import Router from 'express'
 import User from '../models/user.js'
 import auth from '../middleware/auth.js'
 import { isValidObjectId } from 'mongoose'
-import FriendRequest from '../models/friendRequest.js'
+import Request from '../models/request.js'
+import Chat from '../models/chat.js'
 
 const router = new Router()
 
@@ -17,40 +18,38 @@ router.post('/friends/requests/:friendId', auth, async (req, res) => {
         }
 
         const data = {
+            'type': 'direct',
             'sender': req.user._id,
             'receiver': req.params.friendId
         }
 
-        const friendRequest = new FriendRequest(data)
-        await friendRequest.save()
+        const request = new Request(data)
+        await request.save()
 
         await User.updateOne(
-            { _id: friendRequest.sender },
-            { $push: { outgoingFriendRequests: friendRequest._id } }
+            { _id: request.sender },
+            { $push: { outgoingRequests: request._id } }
         )
 
         await User.updateOne(
-            { _id: friendRequest.receiver },
-            { $push: { incomingFriendRequests: friendRequest._id } }
+            { _id: request.receiver },
+            { $push: { incomingRequests: request._id } }
         )
 
-        const sender = await User.findPublicUser(friendRequest.sender
-        )
-
-        const receiver = await User.findPublicUser(friendRequest.receiver)
+        const sender = await User.findPublicUser(request.sender)
+        const receiver = await User.findPublicUser(request.receiver)
 
         if (sender) {
-            friendRequest.sender = sender
+            request.sender = sender
         }
 
         if (receiver) {
-            friendRequest.receiver = receiver
+            request.receiver = receiver
         }
 
-        res.status(201).send({ friendRequest })
+        res.status(201).send({ request })
     } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 
@@ -64,7 +63,7 @@ router.get('/friends/requests', auth, async (req, res) => {
             ]
         }
 
-        const pipeline = FriendRequest.aggregate([
+        const pipeline = Request.aggregate([
             { $match: filter },
             {
                 $lookup: {
@@ -102,12 +101,11 @@ router.get('/friends/requests', auth, async (req, res) => {
             },
         ])
 
-        const friendRequests = await pipeline.exec()
+        const requests = await pipeline.exec()
 
-        res.status(200).send({ friendRequests })
+        res.status(200).send(requests)
     } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 
@@ -131,68 +129,90 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
     }
 
     try {
-        const friendRequest = await FriendRequest.findById({ _id: req.params.requestId })
+        const request = await Request.findById({ _id: req.params.requestId })
 
-        if (!friendRequest) {
-            res.status(400).send({ Error: 'Invalid friendRequest id' })
+        if (!request) {
+            res.status(400).send({ Error: 'Invalid request id' })
             return
         }
 
 
 
-        props.forEach((prop) => friendRequest[prop] = mods[prop])
-        await friendRequest.save()
+        props.forEach((prop) => request[prop] = mods[prop])
+        await request.save()
 
         if (req.body.isAccepted) {
+            const data = {
+                chatType: 'direct',
+                users: [
+                    request.sender._id,
+                    request.receiver._id
+                ]
+            }
+            const chat = new Chat(data)
+
+            await chat.save()
+
             await User.updateOne(
-                { _id: friendRequest.sender },
-                { $push: { friends: friendRequest.receiver } }
+                { _id: request.sender },
+                {
+                    $push: {
+                        friends: {
+                            friendId: request.receiver,
+                            chatId: chat._id
+                        }
+                    }
+                }
             )
 
             await User.updateOne(
-                { _id: friendRequest.receiver },
-                { $push: { friends: friendRequest.sender } }
+                { _id: request.receiver },
+                {
+                    $push: {
+                        friends: {
+                            friendId: request.sender,
+                            chatId: chat._id
+                        }
+                    }
+                }
             )
         }
 
         await User.updateOne(
-            { _id: friendRequest.sender },
-            { $pull: { outgoingFriendRequests: friendRequest._id } }
+            { _id: request.sender },
+            { $pull: { outgoingRequests: request._id } }
         )
 
         await User.updateOne(
-            { _id: friendRequest.receiver },
-            { $pull: { incomingFriendRequests: friendRequest._id } }
+            { _id: request.receiver },
+            { $pull: { incomingRequests: request._id } }
         )
 
-        await FriendRequest.deleteOne({ _id: friendRequest._id })
+        await request.deleteOne({ _id: request._id })
 
-        const sender = await User.findPublicUser(friendRequest.sender
-        )
-
-        const receiver = await User.findPublicUser(friendRequest.receiver)
+        const sender = await User.findPublicUser(request.sender)
+        const receiver = await User.findPublicUser(request.receiver)
 
         if (sender) {
-            friendRequest.sender = sender
+            request.sender = sender
         }
 
         if (receiver) {
-            friendRequest.receiver = receiver
+            request.receiver = receiver
         }
 
-        res.status(200).send({ friendRequest })
+        res.status(200).send({ request })
     } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 
 
 router.delete('/friends/requests/:requestId', auth, async (req, res) => {
     try {
-        const friendRequest = await FriendRequest.findById(req.params.requestId)
+        const request = await Request.findById(req.params.requestId)
 
-        if (!friendRequest) {
+        if (!request) {
             res.status(400).send({ Error: 'Bad Request' })
             return
         }
@@ -200,41 +220,31 @@ router.delete('/friends/requests/:requestId', auth, async (req, res) => {
 
         await User.updateOne(
             { _id: req.user._id },
-            { $pull: { outgoingFriendRequests: req.params.requestId } }
+            { $pull: { outgoingRequests: req.params.requestId } }
         )
 
         await User.updateOne(
-            { _id: friendRequest.receiver },
-            { $pull: { incomingFriendRequests: req.params.requestId } }
+            { _id: request.receiver },
+            { $pull: { incomingRequests: req.params.requestId } }
         )
 
-        await FriendRequest.deleteOne({ _id: req.params.requestId })
+        await request.deleteOne({ _id: req.params.requestId })
 
         res.status(200).send()
     } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 
 
 router.get('/friends', auth, async (req, res) => {
     try {
-        const friends = await User.find(
-            { friends: { $all: [req.user._id] } },
-            {
-                _id: 1,
-                userName: 1,
-                firstName: 1,
-                lastName: 1,
-                email: 1,
-            }
-        )
+        const user = await User.findById(req.user._id, 'friends')
 
-        res.status(200).send({ friends })
+        res.status(200).send(user)
     } catch (error) {
         console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 
@@ -246,25 +256,26 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
             return
         }
 
-        if (!req.user.friends.includes(req.params.friendId)) {
+        const friendExists = req.user.friends.some(f => f.friendId.toString() === req.params.friendId)
+
+        if (!friendExists) {
             res.status(400).send({ Error: 'friendId missing from user\'s friends list.' })
             return
         }
 
         await User.updateOne(
             { _id: req.user._id },
-            { $pull: { friends: req.params.friendId } }
+            { $pull: { friends: { friendId: req.params.friendId } } }
         )
 
         await User.updateOne(
             { _id: req.params.friendId },
-            { $pull: { friends: req.user._id } }
+            { $pull: { friends: { friendId: req.user._id } } }
         )
 
         res.status(200).send()
     } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 

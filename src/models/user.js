@@ -11,7 +11,8 @@ const userSchema = new Schema({
         required: true,
         trim: true,
         lowercase: true,
-        minLength: 4
+        minLength: 3,
+        unique: true
     },
     password: {
         type: String,
@@ -37,26 +38,50 @@ const userSchema = new Schema({
         validate: {
             validator: (value) => validator.isEmail(value),
             message: 'Invalid Email address'
-        }
+        },
+        unique: true
+    },
+
+    courses: {
+        type: [String],
+        required: true
     },
 
     friends: [{
+        _id: false,
+        friendId: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: false,
+        },
+        chatId: {
+            type: Schema.ObjectId,
+            ref: 'Chat'
+        }
+    }],
+
+    groups: [{
+        groupNmame: {
+            type: String,
+        },
+        groupId: {
+            type: Schema.ObjectId,
+            ref: 'Chat'
+        }
+    }],
+
+    incomingRequests: [{
         type: Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'request',
         required: false,
     }],
 
-    incomingFriendRequests: [{
+    outgoingRequests: [{
         type: Schema.Types.ObjectId,
-        ref: 'FriendRequest',
+        ref: 'request',
         required: false,
     }],
 
-    outgoingFriendRequests: [{
-        type: Schema.Types.ObjectId,
-        ref: 'FriendRequest',
-        required: false,
-    }],
 
     tokens: [{
         token: {
@@ -98,11 +123,6 @@ userSchema.statics.findByCredentials = async (email, password) => {
 
     const isMatch = await bcrypt.compare(password, user.password)
 
-    console.log(user.password)
-    console.log(password)
-    console.log(isMatch)
-
-
     if (!isMatch) {
         throw new Error('Unable to sign in')
     }
@@ -120,10 +140,10 @@ userSchema.statics.findPublicUser = async function (id) {
             lastName: 1,
             email: 1,
         }
-    );
+    )
 
-    return user;
-};
+    return user
+}
 
 userSchema.pre('save', async function (next) {
     const user = this
