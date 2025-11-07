@@ -114,6 +114,16 @@ userSchema.methods.generateAuthToken = async function () {
     return token
 }
 
+userSchema.statics.getChatIdOfFriend = async function (userId, friendId) {
+    const user = await User.findById(userId).select({ friends: 1 })
+    const { friends } = user
+    const friend = friends.find((elm) => {
+        return elm.friendId == friendId
+    })
+
+    return friend.chatId
+}
+
 userSchema.statics.findByCredentials = async (email, password) => {
     const user = await User.findOne({ email })
 
@@ -144,6 +154,7 @@ userSchema.statics.findPublicUser = async function (id) {
 
     return user
 }
+
 
 userSchema.pre('save', async function (next) {
     const user = this

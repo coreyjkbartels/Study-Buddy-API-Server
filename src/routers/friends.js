@@ -6,7 +6,7 @@ import Request from '../models/request.js'
 import Chat from '../models/chat.js'
 import MessageBucket from '../models/messageBucket.js'
 
-const MAX_NUM_MESSAGES = 5
+const MAX_NUM_MESSAGES = 25
 
 const router = new Router()
 
@@ -57,6 +57,7 @@ router.post('/friends/requests/:friendId', auth, async (req, res) => {
 })
 
 
+//Get all requests
 router.get('/friends/requests', auth, async (req, res) => {
     try {
         const filter = {
@@ -112,7 +113,7 @@ router.get('/friends/requests', auth, async (req, res) => {
     }
 })
 
-
+//Handle Request
 router.patch('/friends/requests/:requestId', auth, async (req, res) => {
     const mods = req.body
 
@@ -139,17 +140,24 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
             return
         }
 
-
-
         props.forEach((prop) => request[prop] = mods[prop])
         await request.save()
+
+        const sender = await User.findPublicUser(request.sender)
+        const receiver = await User.findPublicUser(request.receiver)
 
         if (req.body.isAccepted) {
             const data = {
                 chatType: 'direct',
                 users: [
-                    request.sender._id,
-                    request.receiver._id
+                    {
+                        userId: sender._id,
+                        username: sender.username
+                    },
+                    {
+                        userId: receiver._id,
+                        username: request.receiver.username
+                    },
                 ]
             }
             const chat = new Chat(data)
@@ -193,8 +201,6 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
 
         await request.deleteOne({ _id: request._id })
 
-        const sender = await User.findPublicUser(request.sender)
-        const receiver = await User.findPublicUser(request.receiver)
 
         if (sender) {
             request.sender = sender
@@ -284,39 +290,97 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
 
 router.post('/friend/:friendId/message', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select({ friends: 1 })
-        const { friends } = user
-        const friend = friends.find((elm) => {
-            return elm.friendId == req.params.friendId
-        })
+        const chatId = await User.getChatIdOfFriend(req.user._id, req.params.friendId)
 
+        if (!chatId) {
+            res.status(400).send({ Error: 'Invalid friend id' })
+            return
+        }
         const data = {
             'content': req.body.content,
             'sender': req.user._id
         }
 
-        let latestBucket = await MessageBucket.find({ chatId: friend.chatId }).sort({ updatedAt: -1 }).limit(1)
+        let latestBucket = (await MessageBucket.find({ chatId: chatId }).sort({ updatedAt: -1 }).limit(1))[0]
 
-        if (!latestBucket || latestBucket.length == MAX_NUM_MESSAGES) {
+        if (!latestBucket || latestBucket.messages.length == MAX_NUM_MESSAGES) {
             latestBucket = new MessageBucket({
-                'chatId': friend.chatId
+                'chatId': chatId
             })
             await latestBucket.save()
 
-            await Chat.updateOne({ _id: friend.chatId },
+            await Chat.updateOne({ _id: chatId },
                 { $push: { messageBuckets: latestBucket } })
         }
 
-        console.log(latestBucket)
-        latestBucket.push({ messages: data })
-        // await latestBucket.save()
+        await MessageBucket.updateOne(
+            { _id: latestBucket._id },
+            {
+                $push: { messages: data }
+            }
+        )
 
-        res.status(200).send(friend)
+        res.status(200).send(data)
 
     } catch (error) {
         console.log(error)
     }
 })
+
+router.get('/friend/:friendId/messages', auth, async (req, res) => {
+    try {
+        const chatId = await User.getChatIdOfFriend(req.user._id, req.params.friendId)
+        const pipeline = [
+            { $match: { chatId } },
+            { $unwind: '$messages' },
+            { $sort: { 'messages.createdAt': 1 } },
+
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'messages.sender',
+                    foreignField: '_id',
+                    as: 'senderDoc'
+                }
+            },
+            { $set: { senderDoc: { $first: '$senderDoc' } } },
+
+            {
+                $project: {
+                    _id: 0,
+                    content: '$messages.content',
+                    sender: '$messages.sender',
+                    username: '$senderDoc.username',
+                    createdAt: '$messages.createdAt',
+                    updatedAt: '$messages.updatedAt'
+                }
+            },
+
+            {
+                $group: {
+                    _id: '$$REMOVE',
+                    messages: {
+                        $push: {
+                            content: '$content',
+                            sender: '$sender',
+                            username: '$username',
+                            createdAt: '$createdAt',
+                            updatedAt: '$updatedAt'
+                        }
+                    }
+                }
+            }
+        ]
+
+        const result = await MessageBucket.aggregate(pipeline)
+
+        res.status(200).send(result)
+
+    } catch (error) {
+        console.log(error)
+    }
+})
+
 
 
 export default router
