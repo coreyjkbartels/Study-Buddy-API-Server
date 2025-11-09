@@ -3,6 +3,7 @@ import Chat from '../models/chat.js'
 import auth from '../middleware/auth.js'
 import User from '../models/user.js'
 import Request from '../models/request.js'
+import MessageBucket from '../models/messageBucket.js'
 
 const router = new Router()
 
@@ -48,7 +49,6 @@ router.post('/group', auth, async (req, res) => {
         res.status(500).send({ name: error.name, message: error.message })
     }
 })
-
 
 //Get Group
 router.get('/group/:chatId', auth, async (req, res) => {
@@ -211,6 +211,49 @@ router.patch('/group/invite/:inviteId', auth, async (req, res) => {
         res.status(200).send({ request })
     } catch (error) {
         res.status(400).send({ Error: 'Bad Request', error })
+    }
+})
+
+//Send Message To Group
+router.post('/group/:chatId/message', auth, async (req, res) => {
+    try {
+        const chatId = req.params.chatId
+        const chat = Chat.findById(chatId)
+        if (!chat) {
+            res.status(400).send('Chat does not exist')
+            return
+        }
+
+        const data = {
+            'content': req.body.content,
+            'sender': req.user._id
+        }
+
+        MessageBucket.insertMessage(chatId, data)
+
+        res.status(200).send(data)
+
+    } catch (error) {
+        console.log(error)
+    }
+})
+
+//Get Messages From Group
+router.get('/group/:chatId/messages', auth, async (req, res) => {
+    try {
+        const chatId = (req.params.chatId)
+
+        const chat = await Chat.findById(chatId)
+
+        if (!chat) {
+            res.status(400).send('Chat does not exist')
+            return
+        }
+
+        const result = await MessageBucket.getMessagesOfChat(chat.id)
+        res.status(200).send(result)
+    } catch (error) {
+        console.log(error)
     }
 })
 

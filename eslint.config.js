@@ -12,7 +12,8 @@ export default defineConfig([
       semi: ['warn', 'never'],
       quotes: ['warn', 'single'],
       'no-unused-vars': 'off',
-      'brace-style': ['error', '1tbs']
+      'brace-style': ['error', '1tbs'],
+      'block-spacing': ['error', 'always']
     }
   },
 ])

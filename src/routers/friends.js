@@ -93,13 +93,13 @@ router.get('/friends/requests', auth, async (req, res) => {
                     'isAccepted': 1,
 
                     'sender._id': 1,
-                    'sender.userName': 1,
+                    'sender.username': 1,
                     'sender.firstName': 1,
                     'sender.lastName': 1,
                     'sender.email': 1,
 
                     'receiver._id': 1,
-                    'receiver.userName': 1,
+                    'receiver.username': 1,
                     'receiver.firstName': 1,
                     'receiver.lastName': 1,
                     'receiver.email': 1,
@@ -218,7 +218,7 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
     }
 })
 
-
+//Delete Friend Request
 router.delete('/friends/requests/:requestId', auth, async (req, res) => {
     try {
         const request = await Request.findById(req.params.requestId)
@@ -247,7 +247,7 @@ router.delete('/friends/requests/:requestId', auth, async (req, res) => {
     }
 })
 
-
+//Get Friends
 router.get('/friends', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user._id, 'friends')
@@ -259,7 +259,7 @@ router.get('/friends', auth, async (req, res) => {
     }
 })
 
-
+//Remove Friend
 router.delete('/friends/:friendId', auth, async (req, res) => {
     try {
         if (!isValidObjectId(req.params.friendId)) {
@@ -290,6 +290,7 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
     }
 })
 
+//Send Message To Friend
 router.post('/friend/:friendId/message', auth, async (req, res) => {
     try {
         const chatId = await User.getChatIdOfFriend(req.user._id, req.params.friendId)
@@ -329,53 +330,17 @@ router.post('/friend/:friendId/message', auth, async (req, res) => {
     }
 })
 
+//Get Messages From Friends
 router.get('/friend/:friendId/messages', auth, async (req, res) => {
     try {
         const chatId = await User.getChatIdOfFriend(req.user._id, req.params.friendId)
-        const pipeline = [
-            { $match: { chatId } },
-            { $unwind: '$messages' },
-            { $sort: { 'messages.createdAt': 1 } },
+        console.log(chatId)
+        if (!chatId) {
+            res.status(400).send('Invalid friend ID')
+            return
+        }
 
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'messages.sender',
-                    foreignField: '_id',
-                    as: 'senderDoc'
-                }
-            },
-            { $set: { senderDoc: { $first: '$senderDoc' } } },
-
-            {
-                $project: {
-                    _id: 0,
-                    content: '$messages.content',
-                    sender: '$messages.sender',
-                    username: '$senderDoc.username',
-                    createdAt: '$messages.createdAt',
-                    updatedAt: '$messages.updatedAt'
-                }
-            },
-
-            {
-                $group: {
-                    _id: '$$REMOVE',
-                    messages: {
-                        $push: {
-                            content: '$content',
-                            sender: '$sender',
-                            username: '$username',
-                            createdAt: '$createdAt',
-                            updatedAt: '$updatedAt'
-                        }
-                    }
-                }
-            }
-        ]
-
-        const result = await MessageBucket.aggregate(pipeline)
-
+        const result = await MessageBucket.getMessagesOfChat(chatId)
         res.status(200).send(result)
 
     } catch (error) {

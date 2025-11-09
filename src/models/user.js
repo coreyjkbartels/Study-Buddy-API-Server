@@ -121,7 +121,7 @@ userSchema.statics.getChatIdOfFriend = async function (userId, friendId) {
         return elm.friendId == friendId
     })
 
-    return friend.chatId
+    return friend?.chatId
 }
 
 userSchema.statics.findByCredentials = async (email, password) => {
