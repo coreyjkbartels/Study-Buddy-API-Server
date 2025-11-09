@@ -11,6 +11,7 @@ const MAX_NUM_MESSAGES = 25
 const router = new Router()
 
 
+//Send Friend Request
 router.post('/friends/requests/:friendId', auth, async (req, res) => {
     try {
         const friend = await User.findById(req.params.friendId)
@@ -63,7 +64,8 @@ router.get('/friends/requests', auth, async (req, res) => {
         const filter = {
             $or: [
                 { sender: req.user._id },
-                { receiver: req.user._id }
+                { receiver: req.user._id },
+                { type: 'direct' }
             ]
         }
 

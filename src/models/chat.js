@@ -17,12 +17,12 @@ const chatSchema = new Schema({
     users: {
         type: [
             {
-                type: Schema.ObjectId,
-                ref: 'User',
-                required: function () {
-                    return this.chatType == 'direct'
-                }
-            },
+                userId: {
+                    type: Schema.ObjectId,
+                    ref: 'User'
+                },
+                username: String
+            }
         ],
 
         max: function () {

@@ -12,18 +12,24 @@ router.post('/group', auth, async (req, res) => {
         const data = req.body
         data.chatType = 'group'
         data.owner = req.user._id
-        data.users.push(req.user._id)
+        if (!data.users) {
+            data.users = [{ userId: req.user._id, username: req.user.username }]
+        } else {
+            data.users.push(req.user._id)
+            data.users = await User.find({ _id: { $in: data.users } }).select({ username: 1 })
+        }
         const chat = new Chat(data)
 
         await User.updateMany(
             { _id: { $in: data.users } },
-            { $push: { chat_sessions: chat._id } }
+            { $push: { groups: { groupName: data.groupName, chatId: chat._id } } }
         )
 
         await chat.save()
 
         res.status(201).send({ chat })
     } catch (error) {
+        console.log(error)
         if (error.name == 'ValidationError') {
             for (let field in error.errors) {
                 if (error.errors[field].name === 'CastError') {
@@ -69,9 +75,11 @@ router.delete('/group/:chatId', auth, async (req, res) => {
             res.status(400).send({ Error: 'Bad Request' })
         }
 
+        const userIds = chat.users.map((u) => u._id).filter(Boolean)
+
         await User.updateMany(
-            { _id: { $in: chat.users } },
-            { $pull: { chat_sessions: chatId } }
+            { _id: { $in: userIds } },
+            { $pull: { groups: { chatId: chatId } } }
         )
         await Chat.deleteOne({ _id: chatId })
 

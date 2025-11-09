@@ -61,10 +61,10 @@ const userSchema = new Schema({
     }],
 
     groups: [{
-        groupNmame: {
+        groupName: {
             type: String,
         },
-        groupId: {
+        chatId: {
             type: Schema.ObjectId,
             ref: 'Chat'
         }
@@ -145,7 +145,7 @@ userSchema.statics.findPublicUser = async function (id) {
         { _id: id },
         {
             _id: 1,
-            userName: 1,
+            username: 1,
             firstName: 1,
             lastName: 1,
             email: 1,

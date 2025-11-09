@@ -38,7 +38,6 @@ router.post('/user', async (req, res) => {
 //Get User
 router.get('/user', auth, async (req, res) => {
     const user = req.user
-    console.log(user)
     res.status(200).send({ user })
 })
 
@@ -70,7 +69,7 @@ router.get('/user/:userId', auth, async (req, res) => {
             { _id: req.params.userId },
             {
                 _id: 1,
-                userName: 1,
+                username: 1,
                 firstName: 1,
                 lastName: 1,
                 email: 1,
