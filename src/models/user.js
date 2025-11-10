@@ -47,6 +47,11 @@ const userSchema = new Schema({
         required: true
     },
 
+    assignments: [{
+        type: Schema.ObjectId,
+        ref: 'Assignment'
+    }],
+
     friends: [{
         _id: false,
         friendId: {
@@ -90,7 +95,6 @@ const userSchema = new Schema({
         }
     }],
 })
-
 
 userSchema.methods.toJSON = function () {
     const user = this
@@ -154,7 +158,6 @@ userSchema.statics.findPublicUser = async function (id) {
 
     return user
 }
-
 
 userSchema.pre('save', async function (next) {
     const user = this
