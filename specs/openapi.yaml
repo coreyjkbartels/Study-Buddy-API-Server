@@ -412,6 +412,137 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
+      
+  /assignment: 
+    post:
+      summary: Create an assignment 
+      operationId: createAssignment
+      tags:
+        - Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                course:
+                  type: string
+                dateAssigned:
+                  type: string
+                dueDate:
+                  type: string
+              required:
+                - title
+                - dateAssigned 
+                - dueDate
+            example:
+              title: Wackathon
+              dateAssigned: 2025-11-01
+              dueDate: 2025-11-21
+              
+      responses: 
+        "200":
+          description: Sucess
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+                
+  /assignment/{id}:
+    patch:
+      summary: Update an assignment
+      operationId: updateAssignment
+      tags:
+        - Assignments
+      parameters: 
+        - name: id
+          in: path
+          required: true
+          description: ID of the assignment to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type : string
+                isComplete:
+                  type: boolean
+              required:
+                - title
+                - isComplete 
+            example:
+              title: "BC Hackathon"
+              isComplete: true
+              
+      responses: 
+        "200":
+          description: Successfully updated
+        "400":
+          description: Bad request
+          content:
+            application/json:
+             schema:
+               $ref: "#/components/schemas/BadRequestError"
+        
+  /assignments:
+    get:
+      summary: List assignments for the signed-in user
+      operationId: List Assignments 
+      tags:
+        - Assignments
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assignment"
+        "401":
+          description: Unautherized
+        "500":
+          description: Server error
+          
+  /assignment/{assignmentId}:
+    delete:
+      summary: delete an assignment
+      operationId: deleteAssignment
+      tags:
+        - Assignments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          description: ID of the assignment to delete
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
+        "401":
+          description: Unauthorized 
 
 components:
   schemas:
@@ -533,6 +664,34 @@ components:
 
       required:
         - chatType
+      
+    Assignment:
+      type: object
+      required: [id, title, dateAssigned, dueDate]
+      properties:
+        id:
+          type: string
+          example: "a1b2c3"
+        title:
+          type: string
+          example: "BC Hackathon"
+        description:
+          type: string
+          example: "5-hour hackathon"
+        course:
+          type: string
+          example: "Computer Science"
+        dateAssigned:
+          type: string
+          format: date
+          example: "2025-11-01"
+        dueDate:
+          type: string
+          format: date
+          example: "2025-11-21"
+        isComplete:
+          type: boolean
+          example: false
 
   securitySchemes:
     bearerAuth:
