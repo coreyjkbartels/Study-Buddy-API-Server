@@ -543,7 +543,8 @@ paths:
                 $ref: '#/components/schemas/BadRequestError'
         "401":
           description: Unauthorized 
-    /friend/{friendId}/message:
+          
+  /friend/{friendId}/message:
     post:
       summary: Send a message to a friend
       operationId: sendMessageToFriend
