@@ -543,6 +543,198 @@ paths:
                 $ref: '#/components/schemas/BadRequestError'
         "401":
           description: Unauthorized 
+    /friend/{friendId}/message:
+    post:
+      summary: Send a message to a friend
+      operationId: sendMessageToFriend
+      tags:
+        - Messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          description: ID of the friend to send a message to
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "hello?"
+              required:
+                - content
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    example: "hello"
+                  sender:
+                    type: string
+                    description: The ID of the user sending the message
+                  createdAt:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid friend ID or bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Server error
+          
+  /friend/{friendId}/messages:
+    get:
+      summary: Get messages exchanged with a friend
+      operationId: getMessagesFromFriend
+      tags:
+        - Messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          description: ID of the friend whose messages are being retrieved
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully retrieved messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sender:
+                      type: string
+                    content:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+        "400":
+          description: Invalid friend ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Server error
+
+  /group/{chatId}/message:
+    post:
+      summary: Send a message to a group chat
+      operationId: sendMessageToGroup
+      tags:
+        - Messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          description: ID of the group chat
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "hello"
+              required:
+                - content
+      responses:
+        "200":
+          description: Message successfully sent to the group
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    example: "hello"
+                  sender:
+                    type: string
+                    description: ID of the user who sent the message
+        "400":
+          description: Chat does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Server error
+          
+  /group/{chatId}/messages:
+    get:
+      summary: Get messages from a group chat
+      operationId: getMessagesFromGroup
+      tags:
+        - Messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          description: ID of the group chat to retrieve messages from
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully retrieved group messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sender:
+                      type: string
+                    content:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+        "400":
+          description: Chat does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Server error
 
 components:
   schemas:
