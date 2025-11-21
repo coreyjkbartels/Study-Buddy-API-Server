@@ -15,6 +15,7 @@ router.post('/user', async (req, res) => {
 
         res.status(201).send({ user, token })
     } catch (error) {
+        console.log(error)
         if (error.name == 'ValidationError') {
             for (let field in error.errors) {
                 if (error.errors[field].name === 'CastError') {
@@ -28,6 +29,10 @@ router.post('/user', async (req, res) => {
             }
 
             return res.status(400).send({ name: error.name, errors: error.errors })
+        }
+
+        if (error.code === 11000) {
+            return res.status(409).send('Duplicate Account')
         }
 
         res.status(500).send({ name: error.name, message: error.message })

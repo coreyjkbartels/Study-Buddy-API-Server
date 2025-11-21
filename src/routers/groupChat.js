@@ -14,11 +14,10 @@ router.post('/group', auth, async (req, res) => {
         data.chatType = 'group'
         data.owner = req.user._id
         if (!data.users) {
-            data.users = [{ userId: req.user._id, username: req.user.username }]
-        } else {
-            data.users.push(req.user._id)
-            data.users = await User.find({ _id: { $in: data.users } }).select({ username: 1 })
+            data.users = []
         }
+        data.users.push(req.user._id)
+        data.users = await User.find({ _id: { $in: data.users } }).select({ username: 1 })
         const chat = new Chat(data)
 
         await User.updateMany(
@@ -47,6 +46,51 @@ router.post('/group', auth, async (req, res) => {
         }
 
         res.status(500).send({ name: error.name, message: error.message })
+    }
+})
+
+//Get all group invites
+router.get('/group/invites', auth, async (req, res) => {
+    try {
+        const filter = {
+            $and: [
+                { receiver: req.user._id },
+                { type: 'group' }
+            ]
+        }
+
+        const pipeline = Request.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: 'users',
+                    foreignField: '_id',
+                    localField: 'sender',
+                    as: 'sender'
+                }
+            },
+
+            {
+                $project: {
+                    '_id': 1,
+                    'isAccepted': 1,
+
+                    'sender._id': 1,
+                    'sender.username': 1,
+                    'sender.firstName': 1,
+                    'sender.lastName': 1,
+                    'sender.email': 1,
+
+                    'group.name': 1
+                }
+            },
+        ])
+
+        const requests = await pipeline.exec()
+
+        res.status(200).send(requests)
+    } catch (error) {
+        res.status(400).send({ Error: 'Bad Request', error })
     }
 })
 
@@ -256,5 +300,16 @@ router.get('/group/:chatId/messages', auth, async (req, res) => {
         console.log(error)
     }
 })
+
+//Get all Groups User is involved in
+router.get('/groups', auth, async (req, res) => {
+    try {
+        res.status(200).send(req.user.groups)
+    } catch (error) {
+        console.log(error)
+    }
+})
+
+
 
 export default router

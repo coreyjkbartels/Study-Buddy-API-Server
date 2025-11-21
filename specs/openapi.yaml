@@ -199,6 +199,17 @@ paths:
           schema:
             type: string
           description: The request ID
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                isAccepted:
+                  type: boolean
+
+              required:
+                - isAccepted
       responses:
         "200":
           description: Success
@@ -234,6 +245,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
+
   /friends/requests:
     get:
       summary: Get Friend Requests
@@ -321,30 +333,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
 
-  /chat:
+  /group/invite/{chatId}/{userId}:
     post:
-      summary: Create a chat
-      operationId: createChat
+      summary: Invite User to Group
+      operationId: postGroupInvite
       tags:
-        - Chat
+        - Groups
       security:
         - bearerAuth:
             - read:users
             - public
+
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: The receiver ID
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+          description: chatId of Group
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  /group/invite/{inviteId}:
+    patch:
+      summary: Handle Group Invite
+      operationId: handleGroupInvite
+      tags:
+        - Groups
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+      parameters:
+        - in: path
+          name: inviteId
+          required: true
+          schema:
+            type: string
+          description: The request ID
 
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Chat"
+              properties:
+                isAccepted:
+                  type: boolean
 
+              required:
+                - isAccepted
       responses:
         "200":
           description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Chat"
         "400":
           description: Bad request
           content:
@@ -352,12 +405,126 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
 
-  /chat/{chatId}:
+  #   delete:
+  #     summary: Delete Friend Request
+  #     operationId: deleterequest
+  #     tags:
+  #       - Friends
+  #     security:
+  #       - bearerAuth:
+  #           - read:users
+  #           - public
+  #     parameters:
+  #       - in: path
+  #         name: requestId
+  #         required: true
+  #         schema:
+  #           type: string
+  #         description: The request ID
+  #     responses:
+  #       "200":
+  #         description: Success
+  #       "400":
+  #         description: Bad request
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: "#/components/schemas/BadRequestError"
+
+  /group/invites:
     get:
-      summary: Get chat by ID
-      operationId: getChat
+      summary: Get Group Invites
+      operationId: getGroupInvites
       tags:
-        - Chat
+        - Groups
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Request"
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  /groups:
+    get:
+      summary: Get all Groups of User
+      operationId: getAllUserGroups
+      tags:
+        - Groups
+
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Chat"
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
+  # /group/{chatId}/{userId}:
+  #   delete:
+  #     summary: Remove User from group
+  #     operationId: removeFriend
+  #     tags:
+  #       - Friends
+
+  #     security:
+  #       - bearerAuth:
+  #           - read:users
+  #           - public
+
+  #     parameters:
+  #       - in: path
+  #         name: friendId
+  #         required: true
+  #         schema:
+  #           type: string
+  #         description: The ID of friend being removed
+
+  #     responses:
+  #       "200":
+  #         description: Success
+  #       "400":
+  #         description: Bad request
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: "#/components/schemas/BadRequestError"
+
+  /group/{chatId}:
+    get:
+      summary: Get group
+      operationId: getGroup
+      tags:
+        - Groups
+
       security:
         - bearerAuth:
             - read:users
@@ -369,7 +536,7 @@ paths:
           required: true
           schema:
             type: string
-          description: The chat ID
+          description: The chatId of Group
 
       responses:
         "200":
@@ -377,19 +544,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Chat"
+                properties:
+                  owner:
+                    type: string
+                    format: objectId
+                  groupName:
+                    type: string
+                  users:
+                    type: array
+                    items:
+                      type: string
         "400":
           description: Bad request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
-
     delete:
-      summary: Delete chat by ID
-      operationId: deleteChat
+      summary: Delete group
+      operationId: deleteGroup
       tags:
-        - Chat
+        - Groups
+
       security:
         - bearerAuth:
             - read:users
@@ -401,7 +577,7 @@ paths:
           required: true
           schema:
             type: string
-          description: The chat ID
+          description: The ID of Group being deleted
 
       responses:
         "200":
@@ -412,13 +588,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
-      
-  /assignment: 
+
+  /assignment:
     post:
-      summary: Create an assignment 
+      summary: Create an assignment
       operationId: createAssignment
       tags:
         - Assignments
+
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
       requestBody:
         content:
           application/json:
@@ -437,14 +619,14 @@ paths:
                   type: string
               required:
                 - title
-                - dateAssigned 
+                - dateAssigned
                 - dueDate
             example:
               title: Wackathon
               dateAssigned: 2025-11-01
               dueDate: 2025-11-21
-              
-      responses: 
+
+      responses:
         "200":
           description: Sucess
         "400":
@@ -453,56 +635,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestError"
-                
-  /assignment/{id}:
-    patch:
-      summary: Update an assignment
-      operationId: updateAssignment
-      tags:
-        - Assignments
-      parameters: 
-        - name: id
-          in: path
-          required: true
-          description: ID of the assignment to update
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title:
-                  type : string
-                isComplete:
-                  type: boolean
-              required:
-                - title
-                - isComplete 
-            example:
-              title: "BC Hackathon"
-              isComplete: true
-              
-      responses: 
-        "200":
-          description: Successfully updated
-        "400":
-          description: Bad request
-          content:
-            application/json:
-             schema:
-               $ref: "#/components/schemas/BadRequestError"
-        
+
   /assignments:
     get:
       summary: List assignments for the signed-in user
-      operationId: List Assignments 
+      operationId: List Assignments
       tags:
         - Assignments
+
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - read:users
+            - public
+
       responses:
         "200":
           description: Success
@@ -513,10 +658,10 @@ paths:
                 items:
                   $ref: "#/components/schemas/Assignment"
         "401":
-          description: Unautherized
+          description: Unauthorized
         "500":
           description: Server error
-          
+
   /assignment/{assignmentId}:
     delete:
       summary: delete an assignment
@@ -524,7 +669,10 @@ paths:
       tags:
         - Assignments
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - read:users
+            - public
+
       parameters:
         - in: path
           name: assignmentId
@@ -533,25 +681,68 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Deleted
         "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BadRequestError'
+                $ref: "#/components/schemas/BadRequestError"
         "401":
-          description: Unauthorized 
-          
+          description: Unauthorized
+
+    patch:
+      summary: Update an assignment
+      operationId: updateAssignment
+      tags:
+        - Assignments
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          description: ID of the assignment to update
+          schema:
+            type: string
+
+      security:
+        - bearerAuth:
+            - read:users
+            - public
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Assignment"
+
+      responses:
+        "200":
+          description: Successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+
   /friend/{friendId}/message:
     post:
       summary: Send a message to a friend
       operationId: sendMessageToFriend
       tags:
         - Messages
+
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - read:users
+            - public
+
       parameters:
         - in: path
           name: friendId
@@ -598,7 +789,7 @@ paths:
           description: Unauthorized
         "500":
           description: Server error
-          
+
   /friend/{friendId}/messages:
     get:
       summary: Get messages exchanged with a friend
@@ -606,7 +797,10 @@ paths:
       tags:
         - Messages
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - read:users
+            - public
+
       parameters:
         - in: path
           name: friendId
@@ -614,6 +808,7 @@ paths:
           description: ID of the friend whose messages are being retrieved
           schema:
             type: string
+
       responses:
         "200":
           description: Successfully retrieved messages
@@ -649,7 +844,10 @@ paths:
       tags:
         - Messages
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - read:users
+            - public
+
       parameters:
         - in: path
           name: chatId
@@ -693,7 +891,7 @@ paths:
           description: Unauthorized
         "500":
           description: Server error
-          
+
   /group/{chatId}/messages:
     get:
       summary: Get messages from a group chat
@@ -701,7 +899,10 @@ paths:
       tags:
         - Messages
       security:
-        - bearerAuth: []
+        - bearerAuth:
+            - read:users
+            - public
+
       parameters:
         - in: path
           name: chatId
@@ -857,7 +1058,7 @@ components:
 
       required:
         - chatType
-      
+
     Assignment:
       type: object
       required: [id, title, dateAssigned, dueDate]

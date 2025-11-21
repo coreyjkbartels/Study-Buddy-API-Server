@@ -62,10 +62,13 @@ router.post('/friends/requests/:friendId', auth, async (req, res) => {
 router.get('/friends/requests', auth, async (req, res) => {
     try {
         const filter = {
-            $or: [
-                { sender: req.user._id },
-                { receiver: req.user._id },
-                { type: 'direct' }
+            $and: [
+                {
+                    $or: [
+                        { sender: req.user._id },
+                        { receiver: req.user._id },
+                    ]
+                }, { type: 'direct' }
             ]
         }
 
