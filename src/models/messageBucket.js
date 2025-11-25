@@ -47,54 +47,11 @@ messageBucketSchema.statics.insertMessage = async function (chatId, data) {
 }
 
 messageBucketSchema.statics.getMessagesOfChat = async function (chatId) {
-    const pipeline = [
-        { $match: { chatId } },
-        { $unwind: '$messages' },
-        { $sort: { 'messages.createdAt': 1 } },
+    let result = []
 
-        {
-            $lookup: {
-                from: 'users',
-                localField: 'messages.sender',
-                foreignField: '_id',
-                as: 'senderDoc'
-            }
-        },
-        { $set: { senderDoc: { $first: '$senderDoc' } } },
-
-        {
-            $project: {
-                _id: 0,
-                content: '$messages.content',
-                sender: '$messages.sender',
-                username: '$senderDoc.username',
-                createdAt: '$messages.createdAt',
-                updatedAt: '$messages.updatedAt'
-            }
-        },
-
-        {
-            $group: {
-                _id: '$$REMOVE',
-                messages: {
-                    $push: {
-                        content: '$content',
-                        sender: '$sender',
-                        username: '$username',
-                        createdAt: '$createdAt',
-                        updatedAt: '$updatedAt'
-                    }
-                }
-            }
-        }
-    ]
-
-    let result
-    const chat = await Chat.findById(chatId, 'chatType')
-    if (chat.chatType == 'direct') {
-        result = await MessageBucket.aggregate(pipeline)
-    } else {
-        result = await MessageBucket.find({ chatId: chatId }, 'messages')
+    let buckets = await MessageBucket.find({ chatId: chatId }, 'messages')
+    for (let i = 0; i < buckets.length; i++) {
+        result = result.concat(buckets[i].messages)
     }
     return result
 }
