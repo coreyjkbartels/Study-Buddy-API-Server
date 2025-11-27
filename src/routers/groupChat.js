@@ -13,19 +13,29 @@ router.post('/group', auth, async (req, res) => {
         const data = req.body
         data.chatType = 'group'
         data.owner = req.user._id
-        if (!data.users) {
-            data.users = []
-        }
-        data.users.push(req.user._id)
-        data.users = await User.find({ _id: { $in: data.users } }).select({ username: 1 })
+
+        const otherUsers = data.users
+
+        data.users = [{
+            _id: req.user._id,
+            username: req.user.username
+        }]
+
         const chat = new Chat(data)
 
-        await User.updateMany(
-            { _id: { $in: data.users } },
+        await User.updateOne(
+            { _id: req.user._id },
             { $push: { groups: { groupName: data.groupName, chatId: chat._id } } }
         )
 
         await chat.save()
+
+        if (otherUsers) {
+            for (let i = 0; i < otherUsers.length; i++) {
+                await groupInviteHandler(chat._id, req.user._id, otherUsers[i])
+            }
+        }
+
 
         res.status(201).send({ chat })
     } catch (error) {
@@ -138,34 +148,7 @@ router.delete('/group/:chatId', auth, async (req, res) => {
 //Invite Member to Group
 router.post('/group/invite/:chatId/:userId', auth, async (req, res) => {
     try {
-        const group = await Chat.findById(req.params.chatId).select({
-            groupName: 1
-        })
-
-        const user = await User.findById(req.params.userId)
-        if (!user) {
-            res.status(400).send({ Error: 'Bad Request' })
-            return
-        }
-
-        const data = {
-            'type': 'group',
-            'sender': req.user._id,
-            'receiver': req.params.userId,
-            'group': {
-                name: group.groupName,
-                chatId: req.params.chatId
-            }
-        }
-
-        const request = new Request(data)
-        await request.save()
-
-        await User.updateOne(
-            { _id: request.receiver },
-            { $push: { incomingRequests: request._id } }
-        )
-
+        const request = await groupInviteHandler(req.params.chatId, req.user._id, req.params.userId)
         const sender = await User.findPublicUser(request.sender)
         const receiver = await User.findPublicUser(request.receiver)
 
@@ -183,6 +166,41 @@ router.post('/group/invite/:chatId/:userId', auth, async (req, res) => {
         res.status(400).send(error)
     }
 })
+
+async function groupInviteHandler(chatId, senderId, receiverId) {
+    const group = await Chat.findById(chatId).select({
+        groupName: 1
+    })
+
+    if (!group) {
+        throw new Error('Group Does Not Exist')
+    }
+
+    const receiver = await User.findById(receiverId)
+    if (!receiver) {
+        throw new Error('User Does Not Exist')
+    }
+
+    const data = {
+        'type': 'group',
+        'sender': senderId,
+        'receiver': receiverId,
+        'group': {
+            name: group.groupName,
+            chatId: chatId
+        }
+    }
+
+    const request = new Request(data)
+    await request.save()
+
+    await User.updateOne(
+        { _id: request.receiver },
+        { $push: { incomingRequests: request._id } }
+    )
+
+    return request
+}
 
 //Handle group invite
 router.patch('/group/invite/:inviteId', auth, async (req, res) => {
