@@ -224,11 +224,15 @@ router.patch('/group/invite/:inviteId', auth, async (req, res) => {
                 }
             )
 
+
             await User.updateOne(
                 { _id: request.receiver },
                 {
                     $push: {
-                        groups: request.group.chatId
+                        groups: {
+                            groupName: request.group.name,
+                            chatId: request.group.chatId
+                        }
                     }
                 }
             )
