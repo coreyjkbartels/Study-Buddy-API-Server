@@ -7,10 +7,11 @@ const messageSubSchema = new Schema({
         type: String,
         required: true
     },
-    sender: {
+    senderId: {
         type: Schema.Types.ObjectId,
         ref: 'User', required: true
     },
+    senderUsername: String
 },
     { timestamps: true }
 )
@@ -48,6 +49,12 @@ messageBucketSchema.statics.insertMessage = async function (chatId, data) {
 
 messageBucketSchema.statics.getMessagesOfChat = async function (chatId) {
     let result = []
+
+    const chat = await Chat.findById(chatId)
+
+    if (!chat) {
+        throw new Error('Invalid Chat ID')
+    }
 
     let buckets = await MessageBucket.find({ chatId: chatId }, 'messages')
     for (let i = 0; i < buckets.length; i++) {

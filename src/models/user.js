@@ -62,7 +62,8 @@ const userSchema = new Schema({
         chatId: {
             type: Schema.ObjectId,
             ref: 'Chat'
-        }
+        },
+        friendUsername: String
     }],
 
     groups: [{
@@ -145,7 +146,7 @@ userSchema.statics.findByCredentials = async (email, password) => {
 }
 
 userSchema.statics.findPublicUser = async function (id) {
-    const user = await User.find(
+    const user = await User.findById(
         { _id: id },
         {
             _id: 1,

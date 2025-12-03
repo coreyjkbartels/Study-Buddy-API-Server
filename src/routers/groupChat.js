@@ -17,7 +17,7 @@ router.post('/group', auth, async (req, res) => {
         const otherUsers = data.users
 
         data.users = [{
-            _id: req.user._id,
+            userId: req.user._id,
             username: req.user.username
         }]
 
@@ -237,7 +237,10 @@ router.patch('/group/invite/:inviteId', auth, async (req, res) => {
                 { _id: request.group.chatId },
                 {
                     $push: {
-                        users: request.receiver
+                        users: {
+                            username: req.user.username,
+                            userId: req.user._id
+                        }
                     }
                 }
             )
@@ -277,49 +280,6 @@ router.patch('/group/invite/:inviteId', auth, async (req, res) => {
         res.status(200).send({ request })
     } catch (error) {
         res.status(400).send({ Error: 'Bad Request', error })
-    }
-})
-
-//Send Message To Group
-router.post('/group/:chatId/message', auth, async (req, res) => {
-    try {
-        const chatId = req.params.chatId
-        const chat = Chat.findById(chatId)
-        if (!chat) {
-            res.status(400).send('Chat does not exist')
-            return
-        }
-
-        const data = {
-            'content': req.body.content,
-            'sender': req.user._id
-        }
-
-        MessageBucket.insertMessage(chatId, data)
-
-        res.status(200).send(data)
-
-    } catch (error) {
-        console.log(error)
-    }
-})
-
-//Get Messages From Group
-router.get('/group/:chatId/messages', auth, async (req, res) => {
-    try {
-        const chatId = (req.params.chatId)
-
-        const chat = await Chat.findById(chatId)
-
-        if (!chat) {
-            res.status(400).send('Chat does not exist')
-            return
-        }
-
-        const result = await MessageBucket.getMessagesOfChat(chat.id)
-        res.status(200).send(result)
-    } catch (error) {
-        console.log(error)
     }
 })
 

@@ -161,10 +161,11 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
                     },
                     {
                         userId: receiver._id,
-                        username: request.receiver.username
+                        username: receiver.username
                     },
                 ]
             }
+
             const chat = new Chat(data)
 
             await chat.save()
@@ -174,7 +175,8 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
                 {
                     $push: {
                         friends: {
-                            friendId: request.receiver,
+                            friendId: receiver._id,
+                            friendUsername: receiver.username,
                             chatId: chat._id
                         }
                     }
@@ -186,7 +188,8 @@ router.patch('/friends/requests/:requestId', auth, async (req, res) => {
                 {
                     $push: {
                         friends: {
-                            friendId: request.sender,
+                            friendId: sender._id,
+                            friendUsername: sender.username,
                             chatId: chat._id
                         }
                     }
@@ -292,65 +295,5 @@ router.delete('/friends/:friendId', auth, async (req, res) => {
         res.status(400).send({ Error: 'Bad Request', error })
     }
 })
-
-//Send Message To Friend
-router.post('/friend/:friendId/message', auth, async (req, res) => {
-    try {
-        const chatId = await User.getChatIdOfFriend(req.user._id, req.params.friendId)
-
-        if (!chatId) {
-            res.status(400).send({ Error: 'Invalid friend id' })
-            return
-        }
-        const data = {
-            'content': req.body.content,
-            'sender': req.user._id
-        }
-
-        let latestBucket = (await MessageBucket.find({ chatId: chatId }).sort({ updatedAt: -1 }).limit(1))[0]
-
-        if (!latestBucket || latestBucket.messages.length == MAX_NUM_MESSAGES) {
-            latestBucket = new MessageBucket({
-                'chatId': chatId
-            })
-            await latestBucket.save()
-
-            await Chat.updateOne({ _id: chatId },
-                { $push: { messageBuckets: latestBucket } })
-        }
-
-        await MessageBucket.updateOne(
-            { _id: latestBucket._id },
-            {
-                $push: { messages: data }
-            }
-        )
-
-        res.status(200).send(data)
-
-    } catch (error) {
-        console.log(error)
-    }
-})
-
-//Get Messages From Friends
-router.get('/friend/:friendId/messages', auth, async (req, res) => {
-    try {
-        const chatId = await User.getChatIdOfFriend(req.user._id, req.params.friendId)
-        console.log(chatId)
-        if (!chatId) {
-            res.status(400).send('Invalid friend ID')
-            return
-        }
-
-        const result = await MessageBucket.getMessagesOfChat(chatId)
-        res.status(200).send(result)
-
-    } catch (error) {
-        console.log(error)
-    }
-})
-
-
 
 export default router

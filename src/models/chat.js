@@ -21,7 +21,9 @@ const chatSchema = new Schema({
                     type: Schema.ObjectId,
                     ref: 'User'
                 },
-                username: String
+                username: {
+                    type: String, required: true
+                }
             }
         ],
 
