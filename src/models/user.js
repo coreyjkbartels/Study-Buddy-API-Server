@@ -110,6 +110,11 @@ const userSchema = new Schema({
             required: false
         }
     }],
+
+    sessions: [{
+        type: Schema.ObjectId,
+        ref: 'Session'
+    }]
 })
 
 userSchema.methods.toJSON = function () {
