@@ -66,6 +66,18 @@ router.get('/users', auth, async (req, res) => {
     res.status(200).send(users)
 })
 
+//Get Assignment Counts
+router.get('/user/assignment-counts', auth, async (req, res) => {
+    const response = {
+        numCompleted: req.user.completeAssignmentsCount,
+        numInProgress: req.user.inProgressAssignmentsCount,
+        numNotStarted: req.user.notStartedAssignmentsCount,
+        totalNum: req.user.completeAssignmentsCount + req.user.inProgressAssignmentsCount + req.user.notStartedAssignmentsCount
+    }
+
+    res.status(200).send(response)
+})
+
 //Get User By Id
 router.get('/user/:userId', auth, async (req, res) => {
     try {
@@ -161,5 +173,7 @@ router.delete('/user', auth, async (req, res) => {
         res.status(400).send({ Error: 'Bad Request' })
     }
 })
+
+
 
 export default router

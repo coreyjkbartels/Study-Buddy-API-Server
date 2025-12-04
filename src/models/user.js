@@ -52,6 +52,21 @@ const userSchema = new Schema({
         ref: 'Assignment'
     }],
 
+    completeAssignmentsCount: {
+        type: Number,
+        default: 0
+    },
+
+    notStartedAssignmentsCount: {
+        type: Number,
+        default: 0
+    },
+
+    inProgressAssignmentsCount: {
+        type: Number,
+        default: 0
+    },
+
     friends: [{
         _id: false,
         friendId: {

@@ -19,6 +19,12 @@ const assignmentSchema = new Schema({
         default: false
     },
 
+    status: {
+        type: String,
+        enum: ['Not Started', 'In Progress', 'Complete'],
+        default: 'Not Started'
+    },
+
     dateAssigned: {
         type: Date,
         required: true
