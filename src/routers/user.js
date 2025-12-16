@@ -42,7 +42,7 @@ router.post('/user', async (req, res) => {
 //Get User
 router.get('/user', auth, async (req, res) => {
     const user = req.user
-    res.status(200).send({ user })
+    res.status(200).send(user)
 })
 
 //Get Users
@@ -64,18 +64,6 @@ router.get('/users', auth, async (req, res) => {
         .limit(parseInt(req.query.limit))
 
     res.status(200).send(users)
-})
-
-//Get Assignment Counts
-router.get('/user/assignment-counts', auth, async (req, res) => {
-    const response = {
-        numCompleted: req.user.completeAssignmentsCount,
-        numInProgress: req.user.inProgressAssignmentsCount,
-        numNotStarted: req.user.notStartedAssignmentsCount,
-        totalNum: req.user.completeAssignmentsCount + req.user.inProgressAssignmentsCount + req.user.notStartedAssignmentsCount
-    }
-
-    res.status(200).send(response)
 })
 
 //Get User By Id

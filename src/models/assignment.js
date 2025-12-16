@@ -14,10 +14,6 @@ const assignmentSchema = new Schema({
 
     description: String,
     course: String,
-    isComplete: {
-        type: Boolean,
-        default: false
-    },
 
     status: {
         type: String,

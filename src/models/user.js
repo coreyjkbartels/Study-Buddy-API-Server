@@ -14,24 +14,28 @@ const userSchema = new Schema({
         minLength: 3,
         unique: true
     },
+
     password: {
         type: String,
         required: true,
         trim: true,
         minLength: 8
     },
+
     firstName: {
         type: String,
         required: true,
         trim: true,
         lowercase: true,
     },
+
     lastName: {
         type: String,
         required: true,
         trim: true,
         lowercase: true,
     },
+
     email: {
         type: String,
         required: true,
@@ -47,24 +51,28 @@ const userSchema = new Schema({
         required: true
     },
 
-    assignments: [{
-        type: Schema.ObjectId,
-        ref: 'Assignment'
-    }],
+    assignments: {
+        assignments: [{
+            type: Schema.ObjectId,
+            ref: 'Assignment'
+        }],
 
-    completeAssignmentsCount: {
-        type: Number,
-        default: 0
-    },
+        counts: {
+            complete: {
+                type: Number,
+                default: 0
+            },
 
-    notStartedAssignmentsCount: {
-        type: Number,
-        default: 0
-    },
+            notStarted: {
+                type: Number,
+                default: 0
+            },
 
-    inProgressAssignmentsCount: {
-        type: Number,
-        default: 0
+            inProgress: {
+                type: Number,
+                default: 0
+            },
+        },
     },
 
     friends: [{
