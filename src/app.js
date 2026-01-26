@@ -7,6 +7,7 @@ import groupChatRouter from './routers/groupChat.js'
 import assignmentRouter from './routers/assignments.js'
 import chatRouter from './routers/chats.js'
 import sessionRouter from './routers/session.js'
+import courseRouter from './routers/course.js'
 
 const app = express()
 
@@ -24,6 +25,7 @@ app.use(groupChatRouter)
 app.use(assignmentRouter)
 app.use(chatRouter)
 app.use(sessionRouter)
+app.use(courseRouter)
 
 const port = process.env.PORT
 app.listen(port, () => {

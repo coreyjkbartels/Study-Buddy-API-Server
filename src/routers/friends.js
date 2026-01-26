@@ -4,12 +4,8 @@ import auth from '../middleware/auth.js'
 import { isValidObjectId } from 'mongoose'
 import Request from '../models/request.js'
 import Chat from '../models/chat.js'
-import MessageBucket from '../models/messageBucket.js'
-
-const MAX_NUM_MESSAGES = 25
 
 const router = new Router()
-
 
 //Send Friend Request
 router.post('/friends/requests/:friendId', auth, async (req, res) => {
