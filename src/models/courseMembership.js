@@ -24,10 +24,12 @@ const courseMembershipSchema = new Schema({
         enum: ['active', 'banned'],
         required: true
     },
-
-    joinedAt: Date
-
-}, { timestamps: true })
+}, {
+    timestamps: {
+        createdAt: 'joinedAt',
+        updatedAt: true
+    }
+})
 
 courseMembershipSchema.index({ courseId: 1, userId: 1 }, { unique: true })
 

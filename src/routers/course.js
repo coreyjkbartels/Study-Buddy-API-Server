@@ -3,7 +3,7 @@ import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import Course from '../models/course.js'
 import CourseMembership from '../models/courseMembership.js'
-import { isAdmin } from '../middleware/courseAuthentication.js'
+import { isAdmin, isCourse } from '../middleware/courseAuthentication.js'
 
 const router = new Router()
 
@@ -57,13 +57,9 @@ function generateJoinCode(length = CODE_LENGTH) {
 }
 
 //Get Course details from id
-router.get('/courses/:courseId', auth, async (req, res) => {
-    const course = await Course.findPublicCourse(req.params.courseId)
-
-    if (!course) {
-        res.status(400).send('Course does not exist')
-        return
-    }
+router.get('/courses/:courseId', auth, isCourse, async (req, res) => {
+    const { course } = req
+    delete course.joinCode
 
     res.status(200).send(course)
 })
@@ -76,9 +72,9 @@ router.get('/courses', auth, async (req, res) => {  //Add more functionality lat
 })
 
 //Delete Course
-router.delete('/courses/:courseId', auth, isAdmin, async (req, res) => {
+router.delete('/courses/:courseId', auth, isCourse, isAdmin, async (req, res) => {
     try {
-        await Course.deleteOne({ _id: req.params.courseId })
+        await req.course.deleteOne()
         await CourseMembership.deleteMany({ courseId: req.params.courseId })
 
         res.status(200).send('Success')
@@ -89,8 +85,8 @@ router.delete('/courses/:courseId', auth, isAdmin, async (req, res) => {
 })
 
 //Update Course
-router.patch('/courses/:courseId', auth, isAdmin, async (req, res) => {
-    const { body: updates, params } = req
+router.patch('/courses/:courseId', auth, isCourse, isAdmin, async (req, res) => {
+    const { body: updates, course } = req
 
     const modifiable = ['title', 'courseName', 'courseCode', 'school', 'isPublic']
     const isValid = Object.keys(updates).every((key) => {
@@ -102,14 +98,78 @@ router.patch('/courses/:courseId', auth, isAdmin, async (req, res) => {
         return
     }
 
+    if ((updates.courseName || updates.courseCode) && !updates.title) {
+        updates.title = `${updates.courseCode} - ${updates.courseName}`
+    }
+
     try {
-        const course = await Course.findOneAndUpdate({ _id: params.courseId }, updates, { new: true })
+        await course.updateOne(updates)
+
+        Object.keys(updates).forEach((key) => {
+            course[key] = updates[key]
+        })
 
         res.status(200).send(course)
     } catch (err) {
         res.status(500).send(err)
         console.log(err)
     }
+})
+
+//Join With Code
+router.post('/courses/join/:joinCode', auth, async (req, res) => {
+    const course = await Course.findOne({ joinCode: req.params.joinCode })
+    const { user } = req
+
+    if (!course) {
+        res.status(404).send('No Course Found For Code')
+        return
+    }
+
+    const data = {
+        courseId: course._id,
+        userId: user._id,
+        role: 'member',
+        status: 'active'
+    }
+
+    try {
+        const membership = new CourseMembership(data)
+        await membership.save()
+        res.status(201).send('User has joined successfully')
+
+    } catch (err) {
+        if (err?.code === 11000) {
+            const membership = await CourseMembership.findOne({ courseId: course._id, userId: user._id })
+            if (membership.status == 'banned') {
+                res.status(403).send('User is banned from course')
+            } else {
+                res.status(400).send('User is already a member')
+            }
+            return
+        }
+        console.log(err)
+    }
+})
+
+//Rotate joinCode
+router.patch('/courses/:courseId/joinCode', auth, isCourse, isAdmin, async (req, res) => {
+    const { course } = req
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+            const joinCode = generateJoinCode(8)
+            course.joinCode = joinCode
+
+            await course.save()
+            return res.status(201).send(course)
+        } catch (err) {
+            if (err?.code === 11000 && err?.keyPattern?.joinCode) continue
+            console.log(err)
+        }
+    }
+
+    return res.status(500).json({ error: 'Failed to generate unique join code' })
 })
 
 export default router
