@@ -2,6 +2,7 @@ import { model, Schema } from 'mongoose'
 import validator from 'validator'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
+import isValidTimeZone from '../assets/timezoneValidation.js'
 
 const { sign } = jwt
 
@@ -22,20 +23,6 @@ const userSchema = new Schema({
         minLength: 8
     },
 
-    firstName: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true,
-    },
-
-    lastName: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true,
-    },
-
     email: {
         type: String,
         required: true,
@@ -46,67 +33,6 @@ const userSchema = new Schema({
         unique: true
     },
 
-    assignments: {
-        assignments: [{
-            type: Schema.ObjectId,
-            ref: 'Assignment'
-        }],
-
-        counts: {
-            complete: {
-                type: Number,
-                default: 0
-            },
-
-            notStarted: {
-                type: Number,
-                default: 0
-            },
-
-            inProgress: {
-                type: Number,
-                default: 0
-            },
-        },
-    },
-
-    friends: [{
-        _id: false,
-        friendId: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            required: false,
-        },
-        chatId: {
-            type: Schema.ObjectId,
-            ref: 'Chat'
-        },
-        friendUsername: String
-    }],
-
-    groups: [{
-        groupName: {
-            type: String,
-        },
-        chatId: {
-            type: Schema.ObjectId,
-            ref: 'Chat'
-        }
-    }],
-
-    incomingRequests: [{
-        type: Schema.Types.ObjectId,
-        ref: 'request',
-        required: false,
-    }],
-
-    outgoingRequests: [{
-        type: Schema.Types.ObjectId,
-        ref: 'request',
-        required: false,
-    }],
-
-
     tokens: [{
         token: {
             type: String,
@@ -114,11 +40,15 @@ const userSchema = new Schema({
         }
     }],
 
-    sessions: [{
-        type: Schema.ObjectId,
-        ref: 'Session'
-    }]
-})
+    timezone: {
+        type: String,
+        required: true,
+        validate: {
+            validator: (tz) => isValidTimeZone(tz),
+            message: 'Invalid Time Zone'
+        }
+    }
+}, { timestamps: true })
 
 userSchema.methods.toJSON = function () {
     const user = this
@@ -142,16 +72,6 @@ userSchema.methods.generateAuthToken = async function () {
     return token
 }
 
-userSchema.statics.getChatIdOfFriend = async function (userId, friendId) {
-    const user = await User.findById(userId).select({ friends: 1 })
-    const { friends } = user
-    const friend = friends.find((elm) => {
-        return elm.friendId == friendId
-    })
-
-    return friend?.chatId
-}
-
 userSchema.statics.findByCredentials = async (email, password) => {
     const user = await User.findOne({ email })
 
@@ -172,11 +92,9 @@ userSchema.statics.findPublicUser = async function (id) {
     const user = await User.findById(
         { _id: id },
         {
-            _id: 1,
-            username: 1,
-            firstName: 1,
-            lastName: 1,
-            email: 1,
+            tokens: 0,
+            password: 0,
+            email: 0
         }
     )
 

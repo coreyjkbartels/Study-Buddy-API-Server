@@ -3,7 +3,7 @@ import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import Course from '../models/course.js'
 import CourseMembership from '../models/courseMembership.js'
-import { isAdmin, isCourse, isMember } from '../middleware/courseAuthentication.js'
+import { isAdmin, isCourse, isMember } from '../middleware/courseAccess.js'
 
 const router = new Router()
 
@@ -31,7 +31,6 @@ router.post('/courses', auth, async (req, res) => {
                 role: 'admin',
                 status: 'active'
             })
-            courseMembership.joinedAt = courseMembership.createdAt
             await courseMembership.save()
 
             return res.status(201).send(course)

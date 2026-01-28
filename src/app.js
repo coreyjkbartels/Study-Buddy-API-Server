@@ -2,10 +2,7 @@ import './db/mongoose.js'
 import express from 'express'
 import cors from 'cors'
 import userRouter from './routers/user.js'
-import friendRouter from './routers/friends.js'
-import groupChatRouter from './routers/groupChat.js'
 import assignmentRouter from './routers/assignments.js'
-import chatRouter from './routers/chats.js'
 import sessionRouter from './routers/session.js'
 import courseRouter from './routers/course.js'
 
@@ -20,10 +17,7 @@ app.use(function (req, res, next) {
 })
 
 app.use(userRouter)
-app.use(friendRouter)
-app.use(groupChatRouter)
 app.use(assignmentRouter)
-app.use(chatRouter)
 app.use(sessionRouter)
 app.use(courseRouter)
 

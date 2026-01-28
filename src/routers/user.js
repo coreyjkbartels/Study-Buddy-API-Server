@@ -1,13 +1,16 @@
 import Router from 'express'
 import User from '../models/user.js'
 import auth from '../middleware/auth.js'
+import { sendValidationError } from '../assets/error.js'
 
 const router = new Router()
 
 // Create User
 router.post('/user', async (req, res) => {
     try {
-        const data = req.body
+        const { body: data } = req
+
+        data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
         const user = new User(data)
 
         await user.save()
@@ -17,18 +20,8 @@ router.post('/user', async (req, res) => {
     } catch (error) {
         console.log(error)
         if (error.name == 'ValidationError') {
-            for (let field in error.errors) {
-                if (error.errors[field].name === 'CastError') {
-                    delete error.errors[field].reason
-                    delete error.errors[field].stringValue
-                    delete error.errors[field].valueType
-                }
-                if (error.errors[field].name === 'ValidatorError') {
-                    delete error.errors[field].properties
-                }
-            }
-
-            return res.status(400).send({ name: error.name, errors: error.errors })
+            sendValidationError(res, error)
+            return
         }
 
         if (error.code === 11000) {
@@ -47,21 +40,17 @@ router.get('/user', auth, async (req, res) => {
 
 //Get Users
 router.get('/users', auth, async (req, res) => {
-    let filter = {}
+    const { query } = req
 
-    if (req.query.q) {
-        filter = {
-            $or: [
-                { username: { $regex: req.query.q, $options: 'i' } },
-                { firstName: { $regex: req.query.q, $options: 'i' } },
-                { lastName: { $regex: req.query.q, $options: 'i' } }
-            ]
-        }
+    const filter = {}
+
+    if (query.username) {
+        filter.username = { $regex: query.username, $options: 'i' }
     }
 
-    const users = await User.find(filter, { username: 1, firstName: 1, lastName: 1, _id: 1 })
-        .skip(parseInt(req.query.offset))
-        .limit(parseInt(req.query.limit))
+    const users = await User.find(filter, { tokens: 0, password: 0, email: 0 })
+        .skip(parseInt(query.offset))
+        .limit(parseInt(query.limit))
 
     res.status(200).send(users)
 })
@@ -72,12 +61,9 @@ router.get('/user/:userId', auth, async (req, res) => {
         const user = await User.findById(
             { _id: req.params.userId },
             {
-                _id: 1,
-                username: 1,
-                firstName: 1,
-                lastName: 1,
-                email: 1,
-                courses: 1
+                tokens: 0,
+                email: 0,
+                password: 0
             }
         )
 
@@ -130,7 +116,7 @@ router.patch('/user', auth, async (req, res) => {
     }
 
     const props = Object.keys(mods)
-    const modifiable = ['firstName', 'lastName', 'username', 'password', 'email']
+    const modifiable = ['username', 'password', 'email', 'timezone']
 
     const isValid = props.every((prop) => modifiable.includes(prop))
 
@@ -146,6 +132,11 @@ router.patch('/user', auth, async (req, res) => {
         res.status(200).send({ user })
     } catch (error) {
         console.log(error)
+
+        if (error.name == 'ValidationError') {
+            sendValidationError(res, error)
+            return
+        }
         res.status(400).send({ Error: 'Bad Request' })
     }
 })
@@ -153,9 +144,9 @@ router.patch('/user', auth, async (req, res) => {
 //Delete User
 router.delete('/user', auth, async (req, res) => {
     try {
-        await User.deleteOne({ _id: req.user._id })
+        await req.user.deleteOne()
 
-        res.status(200).send()
+        res.status(200).send('Account Deleted')
     } catch (error) {
         console.log(error)
         res.status(400).send({ Error: 'Bad Request' })

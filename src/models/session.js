@@ -1,5 +1,5 @@
 import { model, Schema } from 'mongoose'
-import isValidTimeZone from '../assets/timezoneValidation'
+import isValidTimeZone from '../assets/timezoneValidation.js'
 
 const sessionSchema = new Schema({
     title: {

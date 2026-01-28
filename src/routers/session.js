@@ -1,7 +1,7 @@
 import Router from 'express'
 import auth from '../middleware/auth.js'
 import Session from '../models/session.js'
-import { isCourse, isMember } from '../middleware/courseAuthentication.js'
+import { isCourse, isMember } from '../middleware/courseAccess.js'
 import { sendValidationError } from '../assets/error.js'
 
 const router = new Router()

@@ -30,7 +30,6 @@ const courseMembershipSchema = new Schema({
         createdAt: 'joinedAt',
         updatedAt: true
     },
-    _id: false
 })
 
 courseMembershipSchema.index({ course: 1, user: 1 }, { unique: true })

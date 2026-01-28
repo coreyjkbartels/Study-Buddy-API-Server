@@ -1,9 +1,16 @@
 import { model, Schema } from 'mongoose'
 
 const assignmentSchema = new Schema({
-    user: {
+    createdBy: {
         type: Schema.ObjectId,
         ref: 'User',
+        required: true
+    },
+
+    course: {
+        type: Schema.ObjectId,
+        ref: 'Course',
+        index: true,
         required: true
     },
 
@@ -13,26 +20,27 @@ const assignmentSchema = new Schema({
     },
 
     description: String,
-    course: String,
 
     status: {
         type: String,
-        enum: ['Not Started', 'In Progress', 'Complete'],
-        default: 'Not Started'
+        enum: ['active', 'archived'],
+        default: 'active'
     },
 
-    dateAssigned: {
-        type: Date,
+    source: {
+        type: String,
+        enum: ['manual', 'moderator'],
         required: true
     },
 
-    dueDate: {
+    dueAt: {
         type: Date,
         required: true
     }
 
 }, { timestamps: true })
 
+assignmentSchema.index({ course: 1, dueAt: 1 })
 
 const Assignment = model('Assignment', assignmentSchema)
 
