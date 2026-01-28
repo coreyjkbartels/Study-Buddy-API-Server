@@ -1,13 +1,14 @@
 import { model, Schema } from 'mongoose'
 
 const courseMembershipSchema = new Schema({
-    courseId: {
+    course: {
         type: Schema.ObjectId,
         ref: 'Course',
+        index: true,
         required: true
     },
 
-    userId: {
+    user: {
         type: Schema.ObjectId,
         ref: 'User',
         index: true,
@@ -28,10 +29,11 @@ const courseMembershipSchema = new Schema({
     timestamps: {
         createdAt: 'joinedAt',
         updatedAt: true
-    }
+    },
+    _id: false
 })
 
-courseMembershipSchema.index({ courseId: 1, userId: 1 }, { unique: true })
+courseMembershipSchema.index({ course: 1, user: 1 }, { unique: true })
 
 const CourseMembership = model('CourseMembership', courseMembershipSchema)
 

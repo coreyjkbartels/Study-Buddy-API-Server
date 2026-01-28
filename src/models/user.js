@@ -46,11 +46,6 @@ const userSchema = new Schema({
         unique: true
     },
 
-    courses: {
-        type: [String],
-        required: true
-    },
-
     assignments: {
         assignments: [{
             type: Schema.ObjectId,

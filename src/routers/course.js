@@ -3,7 +3,7 @@ import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import Course from '../models/course.js'
 import CourseMembership from '../models/courseMembership.js'
-import { isAdmin, isCourse } from '../middleware/courseAuthentication.js'
+import { isAdmin, isCourse, isMember } from '../middleware/courseAuthentication.js'
 
 const router = new Router()
 
@@ -26,8 +26,8 @@ router.post('/courses', auth, async (req, res) => {
             await course.save()
 
             const courseMembership = new CourseMembership({
-                courseId: course._id,
-                userId: user._id,
+                course: course._id,
+                user: user._id,
                 role: 'admin',
                 status: 'active'
             })
@@ -38,6 +38,7 @@ router.post('/courses', auth, async (req, res) => {
         } catch (err) {
             if (err?.code === 11000 && err?.keyPattern?.joinCode) continue
             console.log(err)
+            return res.status(400).json(err)
         }
     }
 
@@ -103,7 +104,7 @@ router.patch('/courses/:courseId', auth, isCourse, isAdmin, async (req, res) => 
     }
 
     try {
-        await course.updateOne(updates)
+        await course.findOneAndUpdate(updates)
 
         Object.keys(updates).forEach((key) => {
             course[key] = updates[key]
@@ -127,8 +128,8 @@ router.post('/courses/join/:joinCode', auth, async (req, res) => {
     }
 
     const data = {
-        courseId: course._id,
-        userId: user._id,
+        course: course._id,
+        user: user._id,
         role: 'member',
         status: 'active'
     }
@@ -140,7 +141,7 @@ router.post('/courses/join/:joinCode', auth, async (req, res) => {
 
     } catch (err) {
         if (err?.code === 11000) {
-            const membership = await CourseMembership.findOne({ courseId: course._id, userId: user._id })
+            const membership = await CourseMembership.findOne({ course: course._id, user: user._id })
             if (membership.status == 'banned') {
                 res.status(403).send('User is banned from course')
             } else {
@@ -162,7 +163,7 @@ router.patch('/courses/:courseId/joinCode', auth, isCourse, isAdmin, async (req,
             course.joinCode = joinCode
 
             await course.save()
-            return res.status(201).send(course)
+            return res.status(201).send(joinCode)
         } catch (err) {
             if (err?.code === 11000 && err?.keyPattern?.joinCode) continue
             console.log(err)
@@ -170,6 +171,106 @@ router.patch('/courses/:courseId/joinCode', auth, isCourse, isAdmin, async (req,
     }
 
     return res.status(500).json({ error: 'Failed to generate unique join code' })
+})
+
+//Get Members
+router.get('/courses/:courseId/members', auth, isCourse, isMember, async (req, res) => {
+    const { course } = req
+
+    try {
+        const members = await CourseMembership.find(
+            { course: course._id, status: 'active' },
+            { status: 0, courseId: 0, updatedAt: 0 })
+            .populate('user', 'username')
+
+        res.status(200).send(members)
+    } catch (err) {
+        console.log(err)
+        res.status(500).send('Summ happened🤷‍♂️')
+    }
+})
+
+//Get Member
+router.get('/courses/:courseId/members/:userId', auth, isCourse, isMember, async (req, res) => {
+    const { params } = req
+    const membership = await CourseMembership.findOne({ course: params.courseId, user: params.userId }, { course: 0 }).populate('user', 'username')
+
+    if (!membership) {
+        res.status(400).send('User specified is not a member of course')
+        return
+    }
+
+    res.status(200).send(membership)
+})
+
+//Change role/status
+router.patch('/courses/:courseId/members/:userId', auth, isCourse, isAdmin, async (req, res) => {
+    const { body: updates, course, params } = req
+
+    const modifiable = ['role', 'status']
+    try {
+
+
+        if (!updates) {
+            res.status(400).send('No updates sent')
+            return
+        }
+
+        const isValid = Object.keys(updates).every((key) => {
+            return modifiable.includes(key)
+        })
+
+        if (!isValid) {
+            res.status(400).send('Invalid Updates')
+            return
+        }
+
+
+        const membership = await CourseMembership.findOneAndUpdate(
+            { course: course._id, user: params.userId },
+            updates,
+            { runValidators: true })
+
+        if (!membership) {
+            res.status(400).send('User specified is not a member of course')
+            return
+        }
+
+        Object.keys(updates).forEach((key) => {
+            membership[key] = updates[key]
+        })
+
+        res.status(200).send(membership)
+    } catch (err) {
+        res.status(400).json(err)
+        console.log(err)
+    }
+})
+
+//Remove Member
+router.delete('/courses/:courseId/members/:userId', auth, isCourse, isAdmin, async (req, res) => {
+    const { course, params } = req
+
+    try {
+        const membership = await CourseMembership.deleteOne({ course: course._id, user: params.userId })
+        res.status(200).send(membership)
+    } catch (err) {
+        res.status(400).json(err)
+        console.log(err)
+    }
+})
+
+//Leave Course
+router.delete('/courses/:courseId/members/me', auth, isCourse, isMember, async (req, res) => {
+    const { course, user } = req
+
+    try {
+        const membership = await CourseMembership.deleteOne({ course: course._id, user: user._id })
+        res.status(200).send(membership)
+    } catch (err) {
+        res.status(400).json(err)
+        console.log(err)
+    }
 })
 
 export default router
