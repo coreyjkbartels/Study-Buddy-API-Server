@@ -1,37 +1,28 @@
 import Router from 'express'
-import User from '../models/user.js'
 import auth from '../middleware/auth.js'
 import Session from '../models/session.js'
+import { isCourse, isMember } from '../middleware/courseAuthentication.js'
+import { sendValidationError } from '../assets/error.js'
 
 const router = new Router()
 
 // Create Session
-router.post('/session', auth, async (req, res) => {
+router.post('/course/:courseId/sessions', auth, isCourse, isMember, async (req, res) => {
     try {
-        const data = req.body
-        data.attendees = [{
-            username: req.user.username,
-            userId: req.user._id
-        }]
-        const session = new Session(data)
+        const { body: data, course, user } = req
 
+        data.course = course._id
+        data.host = user._id
+        data.timezone = user.timezone
+
+        const session = new Session(data)
         await session.save()
         res.status(201).send(session)
     } catch (error) {
         console.log(error)
         if (error.name == 'ValidationError') {
-            for (let field in error.errors) {
-                if (error.errors[field].name === 'CastError') {
-                    delete error.errors[field].reason
-                    delete error.errors[field].stringValue
-                    delete error.errors[field].valueType
-                }
-                if (error.errors[field].name === 'ValidatorError') {
-                    delete error.errors[field].properties
-                }
-            }
-
-            return res.status(400).send({ name: error.name, errors: error.errors })
+            sendValidationError(res, error)
+            return
         }
 
         if (error.code === 11000) {
@@ -44,18 +35,28 @@ router.post('/session', auth, async (req, res) => {
 
 
 //Get Sessions
-router.get('/sessions', auth, async (req, res) => {
+router.get('/courses/:courseId/sessions', auth, async (req, res) => {
+    const { user, query } = req
     let filter = {}
 
-    if (req.query.date) {
-        filter = {
-            $and: [
-                { 'attendees.userId': req.user._id },
-                { 'date': { $gte: req.query.date, $lt: req.query.date } }
-            ]
-        }
-    } else {
-        filter = { 'attendees.userId': req.user._id }
+    if (query?.mine) {
+        filter.host = user._id
+    }
+
+    if (query?.status) {
+        filter.status = query.status
+    }
+
+    const startsAt = {}
+    if (query?.from) {
+        startsAt.$gte = query.from
+    }
+    if (query?.to) {
+        startsAt.$lte = query.to
+    }
+
+    if (Object.keys(startsAt).length > 0) {
+        filter.startsAt = startsAt
     }
 
     const sessions = await Session.find(filter)
