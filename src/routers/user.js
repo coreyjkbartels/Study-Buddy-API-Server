@@ -44,8 +44,8 @@ router.get('/users', auth, async (req, res) => {
 
     const filter = {}
 
-    if (query.username) {
-        filter.username = { $regex: query.username, $options: 'i' }
+    if (query.q) {
+        filter.username = { $regex: query.q, $options: 'i' }
     }
 
     const users = await User.find(filter, { tokens: 0, password: 0, email: 0 })

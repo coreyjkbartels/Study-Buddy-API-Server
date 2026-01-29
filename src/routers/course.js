@@ -3,7 +3,7 @@ import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import Course from '../models/course.js'
 import CourseMembership from '../models/courseMembership.js'
-import { isAdmin, isCourse, isMember } from '../middleware/courseAccess.js'
+import { isCourseAdmin, isCourse, isCourseMember } from '../middleware/courseAccess.js'
 
 const router = new Router()
 
@@ -72,7 +72,7 @@ router.get('/courses', auth, async (req, res) => {  //Add more functionality lat
 })
 
 //Delete Course
-router.delete('/courses/:courseId', auth, isCourse, isAdmin, async (req, res) => {
+router.delete('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, res) => {
     try {
         await req.course.deleteOne()
         await CourseMembership.deleteMany({ courseId: req.params.courseId })
@@ -85,7 +85,7 @@ router.delete('/courses/:courseId', auth, isCourse, isAdmin, async (req, res) =>
 })
 
 //Update Course
-router.patch('/courses/:courseId', auth, isCourse, isAdmin, async (req, res) => {
+router.patch('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { body: updates, course } = req
 
     const modifiable = ['title', 'courseName', 'courseCode', 'school', 'isPublic']
@@ -153,7 +153,7 @@ router.post('/courses/join/:joinCode', auth, async (req, res) => {
 })
 
 //Rotate joinCode
-router.patch('/courses/:courseId/joinCode', auth, isCourse, isAdmin, async (req, res) => {
+router.patch('/courses/:courseId/joinCode', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { course } = req
 
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -173,7 +173,7 @@ router.patch('/courses/:courseId/joinCode', auth, isCourse, isAdmin, async (req,
 })
 
 //Get Members
-router.get('/courses/:courseId/members', auth, isCourse, isMember, async (req, res) => {
+router.get('/courses/:courseId/members', auth, isCourse, isCourseMember, async (req, res) => {
     const { course } = req
 
     try {
@@ -190,7 +190,7 @@ router.get('/courses/:courseId/members', auth, isCourse, isMember, async (req, r
 })
 
 //Get Member
-router.get('/courses/:courseId/members/:userId', auth, isCourse, isMember, async (req, res) => {
+router.get('/courses/:courseId/members/:userId', auth, isCourse, isCourseMember, async (req, res) => {
     const { params } = req
     const membership = await CourseMembership.findOne({ course: params.courseId, user: params.userId }, { course: 0 }).populate('user', 'username')
 
@@ -203,7 +203,7 @@ router.get('/courses/:courseId/members/:userId', auth, isCourse, isMember, async
 })
 
 //Change role/status
-router.patch('/courses/:courseId/members/:userId', auth, isCourse, isAdmin, async (req, res) => {
+router.patch('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { body: updates, course, params } = req
 
     const modifiable = ['role', 'status']
@@ -247,7 +247,7 @@ router.patch('/courses/:courseId/members/:userId', auth, isCourse, isAdmin, asyn
 })
 
 //Remove Member
-router.delete('/courses/:courseId/members/:userId', auth, isCourse, isAdmin, async (req, res) => {
+router.delete('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { course, params } = req
 
     try {
@@ -260,7 +260,7 @@ router.delete('/courses/:courseId/members/:userId', auth, isCourse, isAdmin, asy
 })
 
 //Leave Course
-router.delete('/courses/:courseId/members/me', auth, isCourse, isMember, async (req, res) => {
+router.delete('/courses/:courseId/members/me', auth, isCourse, isCourseMember, async (req, res) => {
     const { course, user } = req
 
     try {

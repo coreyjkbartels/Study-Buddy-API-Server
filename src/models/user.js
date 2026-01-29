@@ -12,7 +12,6 @@ const userSchema = new Schema({
         required: true,
         trim: true,
         lowercase: true,
-        minLength: 3,
         unique: true
     },
 

@@ -1,13 +1,14 @@
 import Router from 'express'
 import auth from '../middleware/auth.js'
 import Session from '../models/session.js'
-import { isCourse, isMember } from '../middleware/courseAccess.js'
+import { isCourse, isCourseMember } from '../middleware/courseAccess.js'
 import { sendValidationError } from '../assets/error.js'
+import { isSession, isSessionHost } from '../middleware/sessionAccess.js'
 
 const router = new Router()
 
 // Create Session
-router.post('/course/:courseId/sessions', auth, isCourse, isMember, async (req, res) => {
+router.post('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async (req, res) => {
     try {
         const { body: data, course, user } = req
 
@@ -33,9 +34,8 @@ router.post('/course/:courseId/sessions', auth, isCourse, isMember, async (req, 
     }
 })
 
-
 //Get Sessions
-router.get('/courses/:courseId/sessions', auth, async (req, res) => {
+router.get('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async (req, res) => {
     const { user, query } = req
     let filter = {}
 
@@ -63,6 +63,69 @@ router.get('/courses/:courseId/sessions', auth, async (req, res) => {
     res.status(200).send(sessions)
 })
 
+//Get Session
+router.get('/courses/:courseId/sessions/:sessionId', auth, isCourse, isCourseMember, async (req, res) => {
+    try {
+        const session = await Session.findById(req.params.sessionId)
 
+        res.status(200).send(session)
+    } catch (error) {
+        console.log(error)
+    }
+})
+
+//Edit Session
+router.patch('/courses/:courseId/sessions/:sessionId',
+    auth, isCourse, isCourseMember, isSession, isSessionHost,
+    async (req, res) => {
+        const { body: mods, session } = req
+
+        if (mods.length === 0) {
+            res.status(400).send({ Error: 'Missing updates' })
+        }
+
+        const props = Object.keys(mods)
+        const modifiable = ['title', 'goal', 'description', 'startsAt', 'endsAt', 'location', 'locationType', 'capacity', 'joinPolicy', 'status']
+
+        const isValid = props.every((prop) => modifiable.includes(prop))
+
+        if (!isValid) {
+            return res.status(400).send({ error: 'Invalid updates.' })
+        }
+
+        try {
+            props.forEach((prop) => session[prop] = mods[prop])
+            await session.save()
+
+            res.status(200).send(session)
+        } catch (error) {
+            console.log(error)
+
+            if (error.name == 'ValidationError') {
+                sendValidationError(res, error)
+                return
+            }
+            res.status(500).send('🤷‍♂️')
+        }
+    }
+)
+
+//Cancel Session
+router.delete('/courses/:courseId/sessions/:sessionId',
+    auth, isCourse, isCourseMember, isSession, isSessionHost,
+    async (req, res) => {
+        try {
+            const { session } = req
+
+            session.status = 'cancelled'
+            await session.save()
+
+            res.status(200).send('Session Cancelled Successfully')
+        } catch (error) {
+            console.log(error)
+            res.status(500).send('🤷‍♂️')
+        }
+    }
+)
 
 export default router
