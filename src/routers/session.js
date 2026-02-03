@@ -3,7 +3,9 @@ import auth from '../middleware/auth.js'
 import Session from '../models/session.js'
 import { isCourse, isCourseMember } from '../middleware/courseAccess.js'
 import { sendValidationError } from '../assets/error.js'
-import { isSession, isSessionHost } from '../middleware/sessionAccess.js'
+import { isSession, isSessionHost, isSessionParticipant } from '../middleware/sessionAccess.js'
+import SessionParticipant from '../models/sessionParticipant.js'
+import { isValidObjectId } from 'mongoose'
 
 const router = new Router()
 
@@ -18,6 +20,15 @@ router.post('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async
 
         const session = new Session(data)
         await session.save()
+
+        await SessionParticipant.create({
+            session: session._id,
+            user: user._id,
+            invitedBy: user._id,
+            status: 'accepted',
+            respondedAt: new Date()
+        })
+
         res.status(201).send(session)
     } catch (error) {
         console.log(error)
@@ -124,6 +135,67 @@ router.delete('/courses/:courseId/sessions/:sessionId',
         } catch (error) {
             console.log(error)
             res.status(500).send('🤷‍♂️')
+        }
+    }
+)
+
+//Get Session Participants
+router.get('/courses/:courseId/sessions/:sessionId/participants',
+    auth, isCourse, isCourseMember, isSession, isSessionParticipant,
+    async (req, res) => {
+        try {
+            const { session, query } = req
+
+            const filter = {
+                session: session._id
+            }
+
+            if (query?.status) {
+                filter.status = query.status
+            }
+
+            const participants = await SessionParticipant.find(filter, { status: 0, session: 0 })
+                .populate('user', 'username')
+
+            res.status(200).send(participants)
+        } catch (err) {
+            res.status(500).json(err)
+        }
+    }
+)
+
+//Invite Users
+router.post('/courses/:courseId/sessions/:sessionId/invites',
+    auth, isCourse, isCourseMember, isSession, isSessionParticipant,
+    async (req, res) => {
+        try {
+            const { session, body: invitees, user } = req
+
+            const failedUserIds = []
+
+            const data = invitees.filter((i) => isValidObjectId(i))
+                .map((i) => {
+                    return {
+                        session: session._id,
+                        user: i,
+                        invitedBy: user._id,
+                        status: 'invited'
+                    }
+                })
+
+            let documents = await SessionParticipant.create(data, { aggregateErrors: true })
+            documents = documents.map((i) => {
+                if (i.session) return i
+
+                return {
+                    code: i.code,
+                    msg: i.errorResponse.errmsg
+                }
+            })
+
+            res.status(200).send(documents)
+        } catch (err) {
+            res.status(500).json(err)
         }
     }
 )

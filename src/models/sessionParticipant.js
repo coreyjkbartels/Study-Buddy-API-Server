@@ -30,6 +30,8 @@ const sessionParticipantSchema = new Schema({
     respondedAt: Date
 }, { timestamps: true })
 
+sessionParticipantSchema.index({ session: 1, user: 1 }, { unique: true })
+
 const SessionParticipant = model('SessionParticipant', sessionParticipantSchema)
 
 export default SessionParticipant
