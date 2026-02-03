@@ -9,7 +9,7 @@ import { isValidObjectId } from 'mongoose'
 
 const router = new Router()
 
-// Create Session
+//Create Session
 router.post('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async (req, res) => {
     try {
         const { body: data, course, user } = req
@@ -24,7 +24,6 @@ router.post('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async
         await SessionParticipant.create({
             session: session._id,
             user: user._id,
-            invitedBy: user._id,
             status: 'accepted',
             respondedAt: new Date()
         })
@@ -195,6 +194,36 @@ router.post('/courses/:courseId/sessions/:sessionId/invites',
 
             res.status(200).send(documents)
         } catch (err) {
+            res.status(500).json(err)
+        }
+    }
+)
+
+//Join Open Session
+router.post('/courses/:courseId/sessions/:sessionId/join',
+    auth, isCourse, isCourseMember, isSession,
+    async (req, res) => {
+        const { session, user } = req
+
+        if (session.joinPolicy != 'course_open') {
+            res.status(403).send('Not an Open Session')
+            return
+        }
+
+        const data = {
+            session: session._id,
+            user: user._id,
+            status: 'accepted'
+        }
+
+        try {
+            let document = await SessionParticipant.create(data)
+            res.status(200).send(document)
+        } catch (err) {
+            if (err.code === 11000) {
+                return res.status(409).send('User is already a participant')
+            }
+
             res.status(500).json(err)
         }
     }

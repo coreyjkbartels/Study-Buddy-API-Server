@@ -17,8 +17,7 @@ const sessionParticipantSchema = new Schema({
 
     invitedBy: {
         type: Schema.ObjectId,
-        ref: 'User',
-        required: true
+        ref: 'User'
     },
 
     status: {
