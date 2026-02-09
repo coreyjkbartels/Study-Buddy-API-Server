@@ -22,7 +22,7 @@ const sessionParticipantSchema = new Schema({
 
     status: {
         type: String,
-        enum: ['invited', 'accepted', 'declined', 'waitlisted'],
+        enum: ['invited', 'accepted', 'declined', 'waitlisted', 'removed', 'left'],
         required: true
     },
 

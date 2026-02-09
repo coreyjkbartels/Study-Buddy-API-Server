@@ -146,7 +146,7 @@ router.get('/courses/:courseId/sessions/:sessionId/participants',
             const { session, query } = req
 
             const filter = {
-                session: session._id
+                session: session._id,
             }
 
             if (query?.status) {
@@ -171,8 +171,6 @@ router.post('/courses/:courseId/sessions/:sessionId/invites',
             const { session, body: invitees, user } = req
 
             const failedUserIds = []
-
-            console.log(invitees)
 
             const data = invitees.filter((i) => isValidObjectId(i))
                 .map((i) => {
@@ -266,6 +264,22 @@ router.patch('/courses/:courseId/sessions/:sessionId/participants/me/:decision',
             res.status(200).send('User has joined the session')
         } catch (error) {
             res.status(500).json(error)
+        }
+
+    }
+)
+
+//Remove Participant
+router.delete('/courses/:courseId/sessions/:sessionId/participants/:userId',
+    auth, isCourse, isCourseMember, isSession, isSessionHost,
+    async (req, res) => {
+        const { session, params } = req
+        try {
+            const participant = await SessionParticipant.updateOne({ session: session._id, user: params.userId }, { status: 'removed' })
+
+            res.send(participant)
+        } catch (error) {
+            res.json(error)
         }
 
     }
