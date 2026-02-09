@@ -6,6 +6,7 @@ import { sendValidationError } from '../assets/error.js'
 import { isSession, isSessionHost, isSessionParticipant } from '../middleware/sessionAccess.js'
 import SessionParticipant from '../models/sessionParticipant.js'
 import { isValidObjectId } from 'mongoose'
+import SessionMessage from '../models/sessionMessage.js'
 
 const router = new Router()
 
@@ -280,6 +281,124 @@ router.delete('/courses/:courseId/sessions/:sessionId/participants/:userId',
             res.send(participant)
         } catch (error) {
             res.json(error)
+        }
+
+    }
+)
+
+//Send Message
+router.post('/courses/:courseId/sessions/:sessionId/messages',
+    auth, isCourse, isCourseMember, isSession, isSessionParticipant,
+    async (req, res) => {
+        const { body, user, session, course } = req
+
+        const data = {
+            session: session._id,
+            sender: user._id,
+            course: course._id,
+            body: body.message
+        }
+
+        try {
+            const message = await SessionMessage.create(data)
+            res.status(201).send(message)
+        } catch (error) {
+            res.status(500).json(error)
+        }
+    }
+)
+
+//Get Messages
+router.get('/courses/:courseId/sessions/:sessionId/messages',
+    auth, isCourse, isCourseMember, isSession, isSessionParticipant,
+    async (req, res) => {
+        const { session, query } = req
+
+        const filter = {
+            session: session._id,
+            deletedAt: null
+        }
+
+        const sentAt = {}
+        if (query?.after) {
+            sentAt.$gte = query.after
+        }
+        if (query?.before) {
+            sentAt.$lte = query.before
+        }
+        if (Object.keys(sentAt).length > 0) {
+            filter.startsAt = sentAt
+        }
+
+        try {
+            const messages = await SessionMessage.find(filter).skip(query?.offset).limit(query?.limit)
+            res.status(200).send(messages)
+        } catch (error) {
+            res.status(500).json(error)
+        }
+    }
+)
+
+//Edit Messages
+router.patch('/courses/:courseId/sessions/:sessionId/messages/:messageId',
+    auth, isCourse, isCourseMember, isSession, isSessionParticipant,
+    async (req, res) => {
+        const { user, params, body } = req
+
+        const message = await SessionMessage.findOne({ _id: params.messageId })
+
+        if (!message || message.deletedAt) {
+            res.status(404).send('Message does not exist')
+            return
+        }
+
+        if (!user._id.equals(message.sender)) {
+            res.status(403).send('User cannot edit messages they did not send')
+            return
+        }
+
+        message.edited = true
+        message.body = body.message
+
+        try {
+            await message.save()
+            res.status(200).send(message)
+        } catch (error) {
+            res.status(500).json(error)
+        }
+    }
+)
+
+// Delete Message
+router.delete('/courses/:courseId/sessions/:sessionId/messages/:messageId',
+    auth, isCourse, isCourseMember, isSession, isSessionParticipant,
+    async (req, res) => {
+        const { user, params, session } = req
+
+        const message = await SessionMessage.findOne({ _id: params.messageId })
+
+        if (!message) {
+            res.status(404).send('Message does not exist')
+            return
+        }
+
+        if (!user._id.equals(message.sender) && !user._id.equals(session.host)) {
+            res.status(403).send('User cannot delete this message')
+            return
+        }
+
+        if (message.deletedAt) {
+            res.status(404).send('Message already deleted')
+            return
+        }
+
+        message.deletedAt = new Date()
+
+        try {
+            await message.save()
+            res.status(200).send('Message deleted successfully')
+        } catch (error) {
+            res.status(500).json(error)
         }
 
     }

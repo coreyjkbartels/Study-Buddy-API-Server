@@ -27,8 +27,13 @@ const sessionMessageSchema = new Schema({
         required: true
     },
 
+    edited: {
+        type: Boolean,
+        default: false
+    },
+
     deletedAt: Date
-}, { timestamps: { updatedAt: 'editedAt', createdAt: true } })
+}, { timestamps: { updatedAt: 'editedAt', createdAt: 'sentAt' } })
 
 sessionMessageSchema.index({ session: 1, createdAt: 1 })
 
