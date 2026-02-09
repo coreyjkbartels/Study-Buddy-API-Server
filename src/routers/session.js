@@ -172,6 +172,8 @@ router.post('/courses/:courseId/sessions/:sessionId/invites',
 
             const failedUserIds = []
 
+            console.log(invitees)
+
             const data = invitees.filter((i) => isValidObjectId(i))
                 .map((i) => {
                     return {
@@ -226,6 +228,46 @@ router.post('/courses/:courseId/sessions/:sessionId/join',
 
             res.status(500).json(err)
         }
+    }
+)
+
+//RSVP
+router.patch('/courses/:courseId/sessions/:sessionId/participants/me/:decision',
+    auth, isCourse, isCourseMember, isSession,
+    async (req, res) => {
+        const { user, session, params } = req
+
+        const participantDoc = await SessionParticipant.findOne({ session: session._id, user: user._id })
+
+        if (!participantDoc) {
+            res.status(403).send('User was not invited to session')
+            return
+        }
+
+        if (params.decision == 'true') {
+
+            if (participantDoc.status == 'accepted') {
+                res.status(409).send('User is alreadly a participant')
+                return
+            }
+
+            if (participantDoc.status == 'waitlist') {
+                res.status(400).send('Session is currently at capacity')
+                return
+            }
+
+            participantDoc.status = 'accepted'
+        } else {
+            participantDoc.status = 'declined'
+        }
+
+        try {
+            await participantDoc.save()
+            res.status(200).send('User has joined the session')
+        } catch (error) {
+            res.status(500).json(error)
+        }
+
     }
 )
 
