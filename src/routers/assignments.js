@@ -1,207 +1,172 @@
 import Router from 'express'
-import User from '../models/user.js'
 import auth from '../middleware/auth.js'
 import Assignment from '../models/assignment.js'
-import { isValidObjectId } from 'mongoose'
+import { isCourse, isCourseMember, isCourseModerator } from '../middleware/courseAccess.js'
+import { isAssignment } from '../middleware/assignmentAccess.js'
+
 
 const router = new Router()
 
 //Create assignment
-router.post('/assignment', auth, async (req, res) => {
-    try {
-        const data = req.body
-        data.user = req.user._id
-        const assignment = new Assignment(data)
-        await assignment.save()
+router.post('/courses/:courseId/assignments',
+    auth, isCourse, isCourseMember,
+    async (req, res) => {
+        const { body, user, course, courseMembership } = req
 
-        await User.updateOne({ _id: req.user._id },
-            { $push: { 'assignments.assignments': assignment._id } }
-        )
+        const data = {
+            createdBy: user._id,
+            course: course._id,
+            title: body.title,
+            source: courseMembership.role == 'member' ? 'manuel' : 'moderator',
+            dueAt: body.dueAt
+        }
 
-        req.user.assignments.counts.notStarted += 1
-        await req.user.save()
+        if (body.description) {
+            data.description
+        }
 
-        res.status(200).send(assignment)
-    } catch (error) {
-        console.log(error)
-        res.status(400).send(error)
-    }
+        try {
+            const assignment = await Assignment.create(data)
+            res.status(200).send(assignment)
+        } catch (error) {
+            res.status(400).json(error)
+        }
+    })
 
+//Get assignments
+router.get('/courses/:courseId/assignments',
+    auth, isCourse, isCourseMember,
+    async (req, res) => {
+        const { course, query } = req
 
-})
+        const filter = {
+            course: course._id,
+            status: 'active'
+        }
+
+        if (query?.status) {
+            filter.status = query.status
+        }
+
+        if (query?.status == 'all') {
+            delete filter.status
+        }
+
+        try {
+            const assignments = await Assignment.find(filter, { course: 0 })
+            res.status(200).send(assignments)
+        } catch (error) {
+            res.status(500).json(error)
+        }
+    })
+
+//Get Assignment Details
+router.get('/courses/:courseId/assignments/:assignmentId',
+    auth, isCourse, isCourseMember, isAssignment,
+    async (req, res) => {
+        let { assignment } = req
+
+        try {
+            await assignment.populate('createdBy', 'username')
+            await assignment.populate('course', 'title')
+
+            if (!assignment) {
+                res.status(400).send('Invalid Assignment Id')
+            }
+
+            res.status(200).send(assignment)
+        } catch (error) {
+            console.log(error)
+            res.status(500).json(error)
+        }
+    })
 
 //Update assignment
-router.patch('/assignment/:assignmentId', auth, async (req, res) => {
-    const mods = req.body
+router.patch('/courses/:courseId/assignments/:assignmentId',
+    auth, isCourse, isCourseMember, isAssignment,
+    async (req, res) => {
+        const { body: mods, courseMembership, user, assignment } = req
 
-    if (mods.length === 0) {
-        res.status(400).send({ Error: 'Missing updates' })
-    }
+        if (mods.length === 0) {
+            res.status(400).send({ Error: 'Missing updates' })
+        }
 
-    const props = Object.keys(mods)
-    const modifiable = ['title', 'course', 'description', 'isComplete', 'dueDate', 'dateAssigned']
+        const props = Object.keys(mods)
+        const modifiable = ['title', 'description', 'dueAt']
 
-    const isValid = props.every((prop) => modifiable.includes(prop))
+        const isValid = props.every((prop) => modifiable.includes(prop))
 
-    if (!isValid) {
-        return res.status(400).send({ error: 'Invalid updates.' })
-    }
+        if (!isValid) {
+            return res.status(400).send({ error: 'Invalid updates.' })
+        }
 
-    try {
-        const assignment = await Assignment.findById(req.params.assignmentId)
-
-        if (!assignment) {
-            res.status(400).send({ Error: 'Bad Request' })
+        if (!user._id.equals(assignment.createdBy) && courseMembership.role == 'member') {
+            res.status(403).json('Insufficient Authorization')
             return
+        }
+
+        if (courseMembership.role != 'member') {
+            assignment.source = 'moderator'
         }
 
         props.forEach((prop) => assignment[prop] = mods[prop])
-        await assignment.save()
 
-        res.status(200).send(assignment)
-    } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
-    }
-
-})
-
-//Get assignments
-router.get('/assignments', auth, async (req, res) => {
-    const { user } = req
-    await user.populate('assignments.assignments')
-
-    res.status(200).send(user.assignments)
-})
-
-//Get Assignment
-router.get('/assignments/:assignmentId', auth, async (req, res) => {
-    try {
-        const assignment = await Assignment.findById(req.params.assignmentId)
-
-        if (!assignment) {
-            res.status(400).send('Invalid Assignment Id')
+        try {
+            await assignment.save()
+            res.status(200).send(assignment)
+        } catch (error) {
+            res.status(500).json(error)
         }
 
-        res.status(200).send(assignment)
-    } catch (error) {
-        console.log(error)
-    }
+    })
 
-})
+//Moderator Stamp
+router.post('/courses/:courseId/assignments/:assignmentId/stamp',
+    auth, isCourse, isCourseModerator, isAssignment,
+    async (req, res) => {
+        const { assignment } = req
 
-//Delete assignment
-router.delete('/assignments/:assignmentId', auth, async (req, res) => {
-    try {
-        const { user } = req
-        const { assignmentId } = req.params
-        const { assignments, counts } = user.assignments
-
-        if (!isValidObjectId(assignmentId)) {
-            res.status(400).send('Invalid AssignmentId')
-            return
+        assignment.source = 'moderator'
+        try {
+            await assignment.save()
+            res.status(200).send(assignment)
+        } catch (error) {
+            console.log(error)
+            res.status(500).json(error)
         }
+    })
 
-        const assignment = await Assignment.findById(assignmentId)
-        if (!assignment) {
-            res.status(400).send('Assignment Does Not Exist')
-            return
+//Archive assignment
+router.delete('/courses/:courseId/assignments/:assignmentId',
+    auth, isCourse, isCourseMember, isAssignment,
+    async (req, res) => {
+        const { courseMembership, assignment, user } = req
+
+        try {
+
+            if (!user._id.equals(assignment.createdBy) && courseMembership.role == 'member') {
+                res.status(403).json('Insufficient Authorization')
+                return
+            }
+
+            if (!assignment) {
+                res.status(404).send('Assignment Does Not Exist')
+                return
+            }
+
+            if (assignment.status == 'archived') {
+                res.status(400).send('Assignment Already Deleted')
+                return
+            }
+
+            assignment.status = 'archived'
+            await assignment.save()
+
+            res.status(200).send('Assignment Deleted Successfully')
+        } catch (error) {
+            console.log(error)
+
+            res.status(400).send(error)
         }
-
-        await Assignment.deleteOne({ _id: assignmentId })
-
-        assignments.pull(assignmentId)
-
-        switch (assignment.status) {
-            case 'Complete':
-                counts.complete -= 1
-                break
-
-            case 'In Progress':
-                counts.inProgress -= 1
-                break
-
-            case 'Not Started':
-                counts.notStarted -= 1
-                break
-
-        }
-
-        await user.save()
-        res.status(200).send('Assignment Deleted Successfully')
-    } catch (error) {
-        console.log(error)
-
-        res.status(400).send(error)
-    }
-})
-
-
-//Update status
-router.patch('/assignment/:assignmentId/:status', auth, async (req, res) => {
-    try {
-        const assignment = await Assignment.findById(req.params.assignmentId)
-
-        if (!assignment) {
-            res.status(400).send({ Error: 'Assignment Does Not Exist', })
-        }
-
-        const { status: newStatus } = req.params
-        const { status: oldStatus } = assignment
-
-        const options = ['Not Started', 'In Progress', 'Complete']
-
-        if (!options.includes(newStatus)) {
-            res.status(400).send({ Error: 'Invalid Status', })
-        }
-
-        if (newStatus == oldStatus) {
-            res.status(400).send({ Error: 'New status can\'t be the same as old status' })
-        }
-
-        assignment.status = newStatus
-        await assignment.save()
-
-        const { counts } = req.user.assignments
-
-        switch (oldStatus) {
-            case 'Complete':
-                counts.complete -= 1
-                break
-
-            case 'In Progress':
-                counts.inProgress -= 1
-                break
-
-            case 'Not Started':
-                counts.notStarted -= 1
-                break
-
-        }
-
-        switch (newStatus) {
-            case 'Complete':
-                counts.complete += 1
-                break
-
-            case 'In Progress':
-                counts.inProgress += 1
-                break
-
-            case 'Not Started':
-                counts.notStarted += 1
-                break
-
-        }
-
-        await req.user.save()
-
-        res.status(200).send(counts)
-    } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
-    }
-
-})
-
+    })
 export default router

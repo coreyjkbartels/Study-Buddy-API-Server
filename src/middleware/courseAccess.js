@@ -34,6 +34,8 @@ export const isCourseMember = async (req, res, next) => {
         return
     }
 
+    req.courseMembership = membership
+
     next()
 }
 
@@ -54,6 +56,31 @@ export const isCourseAdmin = async (req, res, next) => {
         res.status(403).send('User is not admin of course')
         return
     }
+
+    req.courseMembersip = membership
+
+    next()
+}
+
+export const isCourseModerator = async (req, res, next) => {
+    const membership = await CourseMembership.findOne({ course: req.params.courseId, user: req.user._id })
+
+    if (!membership) {
+        res.status(403).send('User is not a member of course')
+        return
+    }
+
+    if (membership.status == 'banned') {
+        res.status(403).send('User has been banned from course')
+        return
+    }
+
+    if (membership.role == 'member') {
+        res.status(403).send('User is not a moderator of course')
+        return
+    }
+
+    req.courseMembersip = membership
 
     next()
 }
