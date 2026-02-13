@@ -29,6 +29,8 @@
     "multer": "^2.0.2",
     "sharp": "^0.34.4",
     "swagger-editor-dist": "^4.14.8",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "validator": "^13.15.15"
   }
 }

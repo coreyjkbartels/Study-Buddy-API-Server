@@ -5,6 +5,7 @@ import userRouter from './routers/user.js'
 import assignmentRouter from './routers/assignments.js'
 import sessionRouter from './routers/session.js'
 import courseRouter from './routers/course.js'
+import availabilityRouter from './routers/availability.js'
 
 const app = express()
 
@@ -20,6 +21,7 @@ app.use(userRouter)
 app.use(assignmentRouter)
 app.use(sessionRouter)
 app.use(courseRouter)
+app.use(availabilityRouter)
 
 const port = process.env.PORT
 app.listen(port, () => {
