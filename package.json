@@ -14,7 +14,7 @@
   "devDependencies": {
     "@eslint/js": "^9.38.0",
     "env-cmd": "^11.0.0",
-    "eslint": "^9.38.0",
+    "eslint": "^10.0.2",
     "globals": "^16.4.0",
     "nodemon": "^3.1.10"
   },

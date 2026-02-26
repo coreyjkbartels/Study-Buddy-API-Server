@@ -87,17 +87,13 @@ userSchema.statics.findByCredentials = async (email, password) => {
     return user
 }
 
-userSchema.statics.findPublicUser = async function (id) {
-    const user = await User.findById(
-        { _id: id },
-        {
-            tokens: 0,
-            password: 0,
-            email: 0
-        }
-    )
-
-    return user
+userSchema.statics.publicUserProjection = async function () {
+    return {
+        _id: 1,
+        username: 1,
+        createdAt: 1,
+        timezone: 1
+    }
 }
 
 userSchema.pre('save', async function (next) {

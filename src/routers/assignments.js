@@ -211,7 +211,6 @@ router.get('/courses/:courseId/my/assignments',
                     $project: {
                         __v: 0,
                         updatedAt: 0,
-                        'userState._id': 0,
                         'userState.assignment': 0,
                         'userState.course': 0,
                         'userState.user': 0,
@@ -270,4 +269,43 @@ router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
             res.status(500).json(error)
         }
     })
+
+//Get All User Assignments
+router.get('/assignments', auth, async (req, res) => {
+    const { user, query } = req
+
+    const filter = {
+        user: user._id,
+    }
+
+    if (query?.state) {
+        filter.state = query.state
+    }
+
+    try {
+        const assignments = await AssignmentUserState.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: 'assignments',
+                    localField: 'assignment',
+                    foreignField: '_id',
+                    as: 'assignment'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$assignment',
+                }
+            }
+        ])
+
+
+        res.status(200).send(assignments)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json(error)
+    }
+}
+)
 export default router
