@@ -22,7 +22,7 @@ const router = new Router()
  *             type: object
  *             $ref: '#/components/schemas/UserCreateRequest'
  *     responses:
- *       200:
+ *       201:
  *         description: User Object
  *         content:
  *          application/json:

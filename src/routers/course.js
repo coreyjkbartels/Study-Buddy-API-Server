@@ -7,7 +7,28 @@ import { isCourseAdmin, isCourse, isCourseMember } from '../middleware/courseAcc
 
 const router = new Router()
 
-//Create Course
+/**
+ * Create Course
+ * 
+ * @openapi
+ * /courses:
+ *   post:
+ *     summary: Create Course
+ *     tags: [Course]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *              $ref: '#/components/schemas/CourseCreateRequest'
+ *     responses:
+ *       201:
+ *         description: User Object
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Course'        
+*/
 router.post('/courses', auth, async (req, res) => {
     let { user, body: data } = req
 
@@ -56,7 +77,28 @@ function generateJoinCode(length = CODE_LENGTH) {
     return code
 }
 
-//Get Course details from id
+/**
+ * Get Course Details from Id
+ * 
+ * @openapi
+ * /courses/{courseId}:
+ *   get:
+ *     summary: Get Course Details from Id
+ *     tags: [Course]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        type: string
+ *        description: Id of course in question
+ *     responses:
+ *       200:
+ *         description: Course Object
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Course'        
+*/
 router.get('/courses/:courseId', auth, isCourse, async (req, res) => {
     const { course } = req
     delete course.joinCode
@@ -64,14 +106,49 @@ router.get('/courses/:courseId', auth, isCourse, async (req, res) => {
     res.status(200).send(course)
 })
 
-//Get Courses
+
+/**
+ * Get Courses
+ * 
+ * @openapi
+ * /courses:
+ *   get:
+ *     summary: Get Courses
+ *     tags: [Course]
+ *     responses:
+ *       200:
+ *         description: Course Objects
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: array
+ *                  items:
+ *                      $ref: '#/components/schemas/Course'        
+*/
 router.get('/courses', auth, async (req, res) => {  //Add more functionality later
     const courses = await Course.find()
 
     res.status(200).send(courses)
 })
 
-//Delete Course
+/**
+ * Delete Course
+ * 
+ * @openapi
+ * /courses/{courseId}:
+ *    delete:
+ *     summary: Delete Course
+ *     tags: [Course]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        type: string
+ *        description: Id of course in question
+ *     responses:
+ *       200:
+ *         description: Success
+*/
 router.delete('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, res) => {
     try {
         await req.course.deleteOne()
@@ -84,7 +161,45 @@ router.delete('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, r
     }
 })
 
-//Update Course
+/**
+ * Update Course
+ * 
+ * @openapi
+ * /courses/{courseId}:
+ *    patch:
+ *     summary: Update Course
+ *     tags: [Course]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        type: string
+ *        description: Id of course in question
+ *     requestBody:
+ *      required: true
+ *      content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                  title:
+ *                      type: string
+ *                  courseName:
+ *                      type: string
+ *                  courseCode:
+ *                      type: string
+ *                  school:
+ *                      type: string
+ *                  isPublic:
+ *                      type: boolean          
+ *     responses:
+ *       200:
+ *         description: Success
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Course'
+*/
 router.patch('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { body: updates, course } = req
 
@@ -116,7 +231,28 @@ router.patch('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, re
     }
 })
 
-//Join With Code
+/**
+ * Join with joinCode
+ * 
+ * @openapi
+ * /courses/join/{joinCode}:
+ *    patch:
+ *     summary: Join course with code
+ *     tags: [Course]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: joinCode
+ *        type: string
+ *        description: joinCode of Course
+ *     responses:
+ *       200:
+ *         description: User has joined successfullyt
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Course'
+*/
 router.post('/courses/join/:joinCode', auth, async (req, res) => {
     const course = await Course.findOne({ joinCode: req.params.joinCode })
     const { user } = req
@@ -152,7 +288,31 @@ router.post('/courses/join/:joinCode', auth, async (req, res) => {
     }
 })
 
-//Rotate joinCode
+/**
+ * Rotate joinCode
+ * 
+ * @openapi
+ * /courses/:courseId/joinCode:
+ *    patch:
+ *     summary: Rotate join code
+ *     tags: [Course]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        type: string
+ *        description: id of course
+ *     responses:
+ *       200:
+ *         description: join code rotated
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: String
+ * 
+ *       500:
+ *          description: Failed to generate unique join code
+*/
 router.patch('/courses/:courseId/joinCode', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { course } = req
 
@@ -172,14 +332,52 @@ router.patch('/courses/:courseId/joinCode', auth, isCourse, isCourseAdmin, async
     return res.status(500).json({ error: 'Failed to generate unique join code' })
 })
 
-//Get Members
+/**
+ * Get Members
+ * 
+ * @openapi
+ * /courses/:courseId/members:
+ *    get:
+ *     summary: Get course members
+ *     tags: [Course]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        type: string
+ *        description: id of course
+ *     responses:
+ *       200:
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: array
+ *                  items:
+ *                      type: object
+ *                      properties:
+ *                          id: 
+ *                              type: string
+ *                          course:
+ *                              type: string
+ *                          user:
+ *                              type: object
+ *                              properties:
+ *                                  id:
+ *                                      type: string
+ *                                  username:
+ *                                      type: string
+ *                          role:
+ *                              type: string
+ *                          joinedAt:
+ *                              type: string
+*/
 router.get('/courses/:courseId/members', auth, isCourse, isCourseMember, async (req, res) => {
     const { course } = req
 
     try {
         const members = await CourseMembership.find(
             { course: course._id, status: 'active' },
-            { status: 0, courseId: 0, updatedAt: 0 })
+            { status: 0, courseId: 0, updatedAt: 0, __v: 0 })
             .populate('user', 'username')
 
         res.status(200).send(members)
@@ -189,10 +387,53 @@ router.get('/courses/:courseId/members', auth, isCourse, isCourseMember, async (
     }
 })
 
-//Get Member
+/**
+* Get Member
+* 
+* @openapi
+* /courses/:courseId/members/:userId:
+*    get:
+*     summary: Get member details
+*     tags: [Course]
+*     parameters:
+*      - in: path
+*        required: true
+*        name: courseId
+*        type: string
+*        description: id of course
+*      - in: path
+*        required: true
+*        name: userId
+*        type: string
+*        description: id of member
+*     responses:
+*       200:
+*         content:
+*          application/json:
+*              schema:
+*               type: object
+*               properties:
+*                   id: 
+*                       type: string
+*                   user:
+*                       type: object
+*                       properties:
+*                           id:
+*                               type: string
+*                           username:
+*                               type: string
+*                   role:
+*                       type: string
+*                   status:
+*                       type: string
+*                   joinedAt:
+*                       type: string
+*                   updatedAt:
+*                       type: string
+*/
 router.get('/courses/:courseId/members/:userId', auth, isCourse, isCourseMember, async (req, res) => {
     const { params } = req
-    const membership = await CourseMembership.findOne({ course: params.courseId, user: params.userId }, { course: 0 }).populate('user', 'username')
+    const membership = await CourseMembership.findOne({ course: params.courseId, user: params.userId }, { course: 0, __v: 0 }).populate('user', 'username')
 
     if (!membership) {
         res.status(400).send('User specified is not a member of course')

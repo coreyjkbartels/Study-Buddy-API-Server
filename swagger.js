@@ -43,6 +43,33 @@ const options = {
                         email: { type: 'string', format: 'email' },
                         password: { type: 'string', format: 'password' },
                     },
+                },
+                Course: {
+                    type: 'object',
+
+                    properties: {
+                        title: { type: 'string' },
+                        courseName: { type: 'string' },
+                        courseCode: { type: 'string' },
+                        school: { type: 'string' },
+                        createdBy: { type: 'string' },
+                        joinCode: { type: 'string' },
+                        isPublic: { type: 'boolean' },
+                    }
+                },
+                CourseCreateRequest: {
+                    type: 'object',
+                    required: [
+                        'courseName',
+                        'courseCode'
+                    ],
+                    properties: {
+                        title: { type: 'string' },
+                        courseName: { type: 'string' },
+                        courseCode: { type: 'string' },
+                        school: { type: 'string' },
+                        isPublic: { type: 'boolean' },
+                    }
                 }
             },
             securitySchemes: {
