@@ -29,7 +29,7 @@ const assignmentSchema = new Schema({
 
     source: {
         type: String,
-        enum: ['manual', 'moderator'],
+        enum: ['community', 'moderator'],
         required: true
     },
 

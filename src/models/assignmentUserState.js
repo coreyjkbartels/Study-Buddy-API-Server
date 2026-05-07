@@ -1,4 +1,5 @@
 import { model, Schema } from 'mongoose'
+import Assignment from './assignment.js'
 
 const assignmentUserStateSchema = new Schema({
     assignment: {

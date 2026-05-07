@@ -1,5 +1,4 @@
 import swaggerJSDoc from 'swagger-jsdoc'
-
 const options = {
     definition: {
         openapi: '3.0.0',
@@ -18,6 +17,7 @@ const options = {
                         createdAt: { type: 'string', format: 'date-time' },
                     },
                 },
+
                 UserPrivate: {
                     allOf: [
                         { $ref: '#/components/schemas/UserPublic' },
@@ -31,6 +31,7 @@ const options = {
                         }
                     ]
                 },
+
                 UserCreateRequest: {
                     type: 'object',
                     required: [
@@ -44,6 +45,7 @@ const options = {
                         password: { type: 'string', format: 'password' },
                     },
                 },
+
                 Course: {
                     type: 'object',
 
@@ -57,12 +59,15 @@ const options = {
                         isPublic: { type: 'boolean' },
                     }
                 },
+
                 CourseCreateRequest: {
                     type: 'object',
+
                     required: [
                         'courseName',
                         'courseCode'
                     ],
+
                     properties: {
                         title: { type: 'string' },
                         courseName: { type: 'string' },
@@ -70,6 +75,89 @@ const options = {
                         school: { type: 'string' },
                         isPublic: { type: 'boolean' },
                     }
+                },
+
+                AssignmentCreateRequest: {
+                    type: 'object',
+
+                    required: [
+                        'title',
+                        'dueAt'
+                    ],
+
+                    properties: {
+                        title: { type: 'string' },
+                        description: { type: 'string' },
+                        status: { type: 'string', enum: ['active', 'archived'] },
+                        dueAt: { type: 'string' },
+                    }
+
+                },
+
+                Assignment: {
+                    allOf: [
+                        { $ref: '#/components/schemas/AssignmentCreateRequest' },
+                        {
+                            type: 'object',
+                            properties: {
+                                createdBy: { type: 'string' },
+                                course: { type: 'string' },
+                                source: { type: 'string' },
+                                createdAt: { type: 'string' },
+                                updatedAt: { type: 'string' },
+                            }
+                        }
+                    ]
+                },
+
+                AssignmentPatchRequest: {
+                    type: 'object',
+
+                    properties: {
+                        title: { type: 'string' },
+                        description: { type: 'string' },
+                        dueAt: { type: 'string' },
+                    }
+                },
+
+                AssignmentUserState: {
+                    type: 'object',
+
+                    required: [
+                        'assignment',
+                        'course',
+                        'user'
+                    ],
+
+                    properties: {
+                        assignment: { type: 'string' },
+                        course: { type: 'string' },
+                        user: { type: 'string' },
+                        state: { type: 'string' },
+                        personalNotes: { type: 'string' },
+                        personalDueAt: { type: 'string' },
+                        completedAt: { type: 'string' },
+                    }
+
+                },
+
+                AssignmentUserStateExpanded: {
+                    type: 'object',
+
+                    properties: {
+                        assignment: {
+                            $ref: '#/components/schemas/Assignment'
+                        },
+                        course: {
+                            $ref: '#/components/schemas/Course'
+                        },
+                        user: { type: 'string' },
+                        state: { type: 'string' },
+                        personalNotes: { type: 'string' },
+                        personalDueAt: { type: 'string' },
+                        completedAt: { type: 'string' },
+                    }
+
                 }
             },
             securitySchemes: {

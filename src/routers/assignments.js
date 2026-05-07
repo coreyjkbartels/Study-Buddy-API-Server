@@ -5,10 +5,39 @@ import { isCourse, isCourseMember, isCourseModerator } from '../middleware/cours
 import { isAssignment } from '../middleware/assignmentAccess.js'
 import AssignmentUserState from '../models/assignmentUserState.js'
 
-
 const router = new Router()
 
-//Create assignment
+/**
+ * Create Assignment
+ * 
+ * @openapi
+ * /courses/{courseId}/assignments:
+ *   post:
+ *     summary: Create Assignment
+ *     tags: [Assignments]
+ *     parameters:    
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AssignmentCreateRequest'
+ *     responses:
+ *       201:
+ *         description: Assignment Object
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Assignment'
+ *       400:
+ *         description: Validation Errors
+*/
 router.post('/courses/:courseId/assignments',
     auth, isCourse, isCourseMember,
     async (req, res) => {
@@ -18,7 +47,7 @@ router.post('/courses/:courseId/assignments',
             createdBy: user._id,
             course: course._id,
             title: body.title,
-            source: courseMembership.role == 'member' ? 'manual' : 'moderator',
+            source: courseMembership.role == 'member' ? 'community' : 'moderator',
             dueAt: body.dueAt
         }
 
@@ -34,7 +63,48 @@ router.post('/courses/:courseId/assignments',
         }
     })
 
-//Get assignments
+/**
+ * Get Assignments
+ * 
+ * @openapi
+ * /courses/{courseId}/assignments:
+ *   get:
+ *     summary: Get Assignments
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        name: courseId
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: query
+ *        name: status
+ *        schema:
+ *          type: string
+ *          enum:
+ *           - active
+ *           - archived
+ *           - all 
+ *        description: Filter between active and archived assignments
+ *      - in: query
+ *        name: source
+ *        schema:
+ *          type: string
+ *          enum:
+ *           - community
+ *           - moderator
+ *        description: Filter between community-made and moderator-made assignments
+ *     responses:
+ *       200:
+ *         description: Array of Assignment Objects
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: array
+ *                  items:
+ *                      $ref: '#/components/schemas/Assignment'
+*/
 router.get('/courses/:courseId/assignments',
     auth, isCourse, isCourseMember,
     async (req, res) => {
@@ -43,6 +113,10 @@ router.get('/courses/:courseId/assignments',
         const filter = {
             course: course._id,
             status: 'active'
+        }
+
+        if (query?.source) {
+            filter.source = query.source
         }
 
         if (query?.status) {
@@ -61,7 +135,35 @@ router.get('/courses/:courseId/assignments',
         }
     })
 
-//Get Assignment Details
+/**
+ * Get Assignment from Id
+ * 
+ * @openapi
+ * /courses/{courseId}/assignments/{assignmentId}:
+ *   get:
+ *     summary: Get Assignment from Id
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: path
+ *        required: true
+ *        name: assignmentId
+ *        schema:
+ *          type: string
+ *        description: Id of assignment
+ *     responses:
+ *       200:
+ *         description: Assignment Object
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Assignment'
+*/
 router.get('/courses/:courseId/assignments/:assignmentId',
     auth, isCourse, isCourseMember, isAssignment,
     async (req, res) => {
@@ -82,7 +184,44 @@ router.get('/courses/:courseId/assignments/:assignmentId',
         }
     })
 
-//Update assignment
+/**
+ * Update Assignment
+ * 
+ * @openapi
+ * /courses/{courseId}/assignments/{assignmentId}:
+ *   patch:
+ *     summary:  Update Assignment
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: path
+ *        required: true
+ *        name: assignmentId
+ *        schema:
+ *          type: string
+ *        description: Id of assignment
+ *     requestBody:
+ *      required: true
+ *      content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/AssignmentPatchRequest'
+ *                  
+ *     responses:
+ *       200:
+ *         description: Assignment Object
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Assignment'
+ *       400:
+ *         description: Validation Errors
+*/
 router.patch('/courses/:courseId/assignments/:assignmentId',
     auth, isCourse, isCourseMember, isAssignment,
     async (req, res) => {
@@ -121,7 +260,35 @@ router.patch('/courses/:courseId/assignments/:assignmentId',
 
     })
 
-//Moderator Stamp
+/**
+ * Moderator Stamp
+ * 
+ * @openapi
+ * /courses/{courseId}/assignments/{assignmentId}/stamp:
+ *   post:
+ *     summary:  Verify assignment
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        required: true
+ *        name: courseId
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: path
+ *        required: true
+ *        name: assignmentId
+ *        schema:
+ *          type: string
+ *        description: Id of assignment
+ *     responses:
+ *       200:
+ *         description: Assignment Object
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  $ref: '#/components/schemas/Assignment'
+*/
 router.post('/courses/:courseId/assignments/:assignmentId/stamp',
     auth, isCourse, isCourseModerator, isAssignment,
     async (req, res) => {
@@ -137,7 +304,31 @@ router.post('/courses/:courseId/assignments/:assignmentId/stamp',
         }
     })
 
-//Archive assignment
+/**
+* Archive Assignment
+* 
+* @openapi
+* /courses/{courseId}/assignments/{assignmentId}:
+*   delete:
+*     summary:  Archive assignment
+*     tags: [Assignments]
+*     parameters:
+*      - in: path
+*        required: true
+*        name: courseId
+*        schema:
+*          type: string
+*        description: Id of course
+*      - in: path
+*        required: true
+*        name: assignmentId
+*        schema:
+*          type: string
+*        description: Id of assignment
+*     responses:
+*       200:
+*         description: Assignment Archived Successfully
+*/
 router.delete('/courses/:courseId/assignments/:assignmentId',
     auth, isCourse, isCourseMember, isAssignment,
     async (req, res) => {
@@ -163,7 +354,7 @@ router.delete('/courses/:courseId/assignments/:assignmentId',
             assignment.status = 'archived'
             await assignment.save()
 
-            res.status(200).send('Assignment Deleted Successfully')
+            res.status(200).send('Assignment Archived Successfully')
         } catch (error) {
             console.log(error)
 
@@ -171,7 +362,53 @@ router.delete('/courses/:courseId/assignments/:assignmentId',
         }
     })
 
-//Get Assignments with User States
+/**
+ * Get Assignments with user states
+ * 
+ * @openapi
+ * /courses/{courseId}/my/assignments:
+ *   get:
+ *     summary: Get Assignments
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        name: courseId
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: query
+ *        name: status
+ *        schema:
+ *          type: string
+ *          enum:
+ *           - active
+ *           - archived
+ *           - all 
+ *        description: Filter between active and archived assignments
+ *      - in: query
+ *        name: source
+ *        schema:
+ *          type: string
+ *          enum:
+ *           - community
+ *           - moderator
+ *        description: Filter between community-made and moderator-made assignments
+ *     responses:
+ *       200:
+ *         description: Array of Assignment Objects
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: array
+ *                  items:
+ *                      type: object
+ *                      properties:
+ *                          assignment:
+ *                              $ref: '#/components/schemas/Assignment'
+ *                          userState:
+ *                              $ref: '#/components/schemas/AssignmentUserState'
+*/
 router.get('/courses/:courseId/my/assignments',
     auth, isCourse, isCourseMember,
     async (req, res) => {
@@ -180,6 +417,10 @@ router.get('/courses/:courseId/my/assignments',
         const filter = {
             course: course._id,
             status: 'active'
+        }
+
+        if (query?.source) {
+            filter.source = query.source
         }
 
         if (query?.status) {
@@ -230,7 +471,51 @@ router.get('/courses/:courseId/my/assignments',
         }
     })
 
-//Edit my version of assignment
+/**
+ * Edit personal assignment metadata
+ * 
+ * @openapi
+ * /courses/{courseId}/assignments/{assignmentId}/my-state:
+ *   patch:
+ *     summary: Edit personal assignment metadata
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        name: courseId
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: path
+ *        name: assignmentId
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: Id of assignment
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *              type: object
+ *              properties:
+ *                  state:
+ *                      type: string
+ *                  personalNotes:
+ *                      type: string
+ *                  personalDueAt:
+ *                      type: string
+ *                  completedAt:
+ *                      type: string
+ *     responses:
+ *       200:
+ *         description: Array of Assignment Objects
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: array
+ *                  items:
+ *                     $ref: '#/components/schemas/AssignmentUserState'
+*/
 router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
     auth, isCourse, isCourseMember, isAssignment,
     async (req, res) => {
@@ -242,7 +527,8 @@ router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
             userState = await AssignmentUserState.create({
                 assignment: assignment._id,
                 user: user._id,
-                course: course._id
+                course: course._id,
+                personalDueAt: assignment.dueAt
             })
         }
 
@@ -270,7 +556,37 @@ router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
         }
     })
 
-//Get All User Assignments
+/**
+ * Get all assignments with user states
+ * 
+ * @openapi
+ * /assignments:
+ *   get:
+ *     summary: Get all assignments with user states
+ *     tags: [Assignments]
+ *     parameters:
+ *      - in: path
+ *        name: courseId
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: Id of course
+ *      - in: path
+ *        name: assignmentId
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: Id of assignment
+ *     responses:
+ *       200:
+ *         description: Array of Assignment Objects
+ *         content:
+ *          application/json:
+ *              schema:
+ *                  type: array
+ *                  items:
+ *                     $ref: '#/components/schemas/AssignmentUserState'
+*/
 router.get('/assignments', auth, async (req, res) => {
     const { user, query } = req
 
@@ -282,24 +598,23 @@ router.get('/assignments', auth, async (req, res) => {
         filter.state = query.state
     }
 
-    try {
-        const assignments = await AssignmentUserState.aggregate([
-            { $match: filter },
-            {
-                $lookup: {
-                    from: 'assignments',
-                    localField: 'assignment',
-                    foreignField: '_id',
-                    as: 'assignment'
-                }
-            },
-            {
-                $unwind: {
-                    path: '$assignment',
-                }
-            }
-        ])
+    if (query?.dueIn) {
+        const date = new Date()
+        date.setDate(date.getDate() + Number(query.dueIn))
+        filter.personalDueAt = { $lte: date }
+    }
 
+    try {
+        let assignments = await AssignmentUserState.find(filter)
+            .populate('assignment')
+            .populate('course')
+            .sort({ personalDueAt: 1 })
+
+        if (query?.status) {
+            assignments = assignments.filter((assignment) => {
+                assignment.assignment.status == query.status
+            })
+        }
 
         res.status(200).send(assignments)
     } catch (error) {
