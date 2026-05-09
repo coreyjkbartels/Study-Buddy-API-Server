@@ -463,6 +463,26 @@ router.get('/courses/:courseId/my/assignments',
 
             ])
 
+            for (let assignment of assignments) {
+                if (!assignment.userState) {
+                    let userState = await AssignmentUserState.findOneAndUpdate(
+                        { user: user._id, assignment: assignment._id },
+                        {
+                            user: user._id,
+                            assignment: assignment._id,
+                            course: course._id,
+                            personalDueAt: assignment.dueAt
+                        },
+                        { upsert: true, new: true })
+
+                    assignment.userState = {
+                        _id: userState._id,
+                        personalDueAt: userState.personalDueAt,
+                        state: userState.state,
+                    }
+                }
+            }
+
 
             res.status(200).send(assignments)
         } catch (error) {
