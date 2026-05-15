@@ -41,19 +41,11 @@ const router = new Router()
 router.post('/courses/:courseId/assignments',
     auth, isCourse, isCourseMember,
     async (req, res) => {
-        const { body, user, course, courseMembership } = req
+        const { body: data, user, course, courseMembership } = req
 
-        const data = {
-            createdBy: user._id,
-            course: course._id,
-            title: body.title,
-            source: courseMembership.role == 'member' ? 'community' : 'moderator',
-            dueAt: body.dueAt
-        }
-
-        if (body.description) {
-            data.description
-        }
+        data.createdBy = user._id
+        data.course = course._id
+        data.source = courseMembership.role == 'member' ? 'community' : 'moderator'
 
         try {
             const assignment = await Assignment.create(data)
