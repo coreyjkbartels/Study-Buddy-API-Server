@@ -4,6 +4,7 @@ import Assignment from '../models/assignment.js'
 import { isCourse, isCourseMember, isCourseModerator } from '../middleware/courseAccess.js'
 import { isAssignment } from '../middleware/assignmentAccess.js'
 import AssignmentUserState from '../models/assignmentUserState.js'
+import CourseMembership from '../models/courseMembership.js'
 
 const router = new Router()
 
@@ -602,31 +603,78 @@ router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
 router.get('/assignments', auth, async (req, res) => {
     const { user, query } = req
 
+    let courses = await CourseMembership.find({ user: user._id, status: 'active' }, { course: 1 })
+    courses = courses.map(course => course.course)
+
     const filter = {
-        user: user._id,
+        status: 'active',
+        course: { $in: courses }
     }
 
-    if (query?.state) {
-        filter.state = query.state
+    if (query?.source) {
+        filter.source = query.source
     }
 
-    if (query?.dueIn) {
-        const date = new Date()
-        date.setDate(date.getDate() + Number(query.dueIn))
-        filter.personalDueAt = { $lte: date }
+    if (query?.status) {
+        filter.status = query.status
+    }
+
+    if (query?.status == 'all') {
+        delete filter.status
     }
 
     try {
-        let assignments = await AssignmentUserState.find(filter)
-            .populate('assignment')
-            .populate('course')
-            .sort({ personalDueAt: 1 })
+        const assignments = await Assignment.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: 'assignmentuserstates',
+                    localField: '_id',
+                    foreignField: 'assignment',
+                    as: 'userState'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$userState',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    updatedAt: 0,
+                    'userState.assignment': 0,
+                    'userState.course': 0,
+                    'userState.user': 0,
+                    'userState.createdAt': 0,
+                    'userState.updatedAt': 0,
+                    'userState.__v': 0
+                }
+            }
 
-        if (query?.status) {
-            assignments = assignments.filter((assignment) => {
-                assignment.assignment.status == query.status
-            })
+        ])
+
+        for (let assignment of assignments) {
+            if (!assignment.userState) {
+                let userState = await AssignmentUserState.findOneAndUpdate(
+                    { user: user._id, assignment: assignment._id },
+                    {
+                        user: user._id,
+                        assignment: assignment._id,
+                        course: assignment.course,
+                        personalDueAt: assignment.dueAt
+                    },
+                    { upsert: true, new: true })
+
+                assignment.userState = {
+                    _id: userState._id,
+                    personalDueAt: userState.personalDueAt,
+                    state: userState.state,
+                }
+            }
         }
+
 
         res.status(200).send(assignments)
     } catch (error) {
