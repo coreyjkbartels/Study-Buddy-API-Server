@@ -628,6 +628,20 @@ router.get('/assignments', auth, async (req, res) => {
             { $match: filter },
             {
                 $lookup: {
+                    from: 'courses',
+                    localField: 'course',
+                    foreignField: '_id',
+                    as: 'course'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$course',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $lookup: {
                     from: 'assignmentuserstates',
                     localField: '_id',
                     foreignField: 'assignment',
