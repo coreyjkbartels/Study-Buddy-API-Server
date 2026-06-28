@@ -101,9 +101,15 @@ function generateJoinCode(length = CODE_LENGTH) {
 */
 router.get('/courses/:courseId', auth, isCourse, async (req, res) => {
     const { course } = req
-    delete course.joinCode
+    const data = course.toObject()
+    delete data.joinCode
 
-    res.status(200).send(course)
+    res.status(200).send(data)
+})
+
+//Get Join Code (admin only)
+router.get('/courses/:courseId/joinCode', auth, isCourse, isCourseAdmin, async (req, res) => {
+    res.status(200).send({ joinCode: req.course.joinCode })
 })
 
 
@@ -126,7 +132,7 @@ router.get('/courses/:courseId', auth, isCourse, async (req, res) => {
  *                      $ref: '#/components/schemas/Course'        
 */
 router.get('/courses', auth, async (req, res) => {  //Add more functionality later
-    const courses = await Course.find()
+    const courses = await Course.find({}, { joinCode: 0 })
 
     res.status(200).send(courses)
 })

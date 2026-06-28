@@ -73,7 +73,7 @@ before param paths.)
 
 ---
 
-## SB-3 — `joinCode` leaks from course read endpoints  ⬜
+## SB-3 — `joinCode` leaks from course read endpoints  ✅
 
 - **Severity:** High (security — invite codes are effectively passwords)
 - **File:** `src/routers/course.js` — "Get Courses" and "Get Course" handlers
