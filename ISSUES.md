@@ -20,7 +20,7 @@ Status: ⬜ open · 🟠 in progress · ✅ fixed
 
 ---
 
-## SB-1 — `GET /courses/:courseId/sessions` returns sessions from every course  ⬜
+## SB-1 — `GET /courses/:courseId/sessions` returns sessions from every course  ✅
 
 - **Severity:** High (correctness, data leak across courses)
 - **File:** `src/routers/session.js` — the "Get Sessions" handler

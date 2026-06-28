@@ -47,16 +47,14 @@ router.post('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async
 
 //Get Sessions
 router.get('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async (req, res) => {
-    const { user, query } = req
-    let filter = {}
+    const { user, course, query } = req
+    let filter = { course: course._id }
 
     if (query?.mine) {
         filter.host = user._id
     }
 
-    if (query?.status) {
-        filter.status = query.status
-    }
+    filter.status = query?.status ?? 'scheduled'
 
     const startsAt = {}
     if (query?.from) {
@@ -70,7 +68,7 @@ router.get('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async 
         filter.startsAt = startsAt
     }
 
-    const sessions = await Session.find(filter)
+    const sessions = await Session.find(filter).sort({ startsAt: 1 })
     res.status(200).send(sessions)
 })
 
