@@ -51,7 +51,7 @@ Also consider: default `status` to `scheduled` unless asked, and sort by
 
 ---
 
-## SB-2 — "Leave course" route is unreachable (route-ordering bug)  ⬜
+## SB-2 — "Leave course" route is unreachable (route-ordering bug)  ✅
 
 - **Severity:** High (a documented feature simply doesn't work)
 - **File:** `src/routers/course.js`

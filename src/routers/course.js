@@ -487,12 +487,12 @@ router.patch('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin
     }
 })
 
-//Remove Member
-router.delete('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin, async (req, res) => {
-    const { course, params } = req
+//Leave Course
+router.delete('/courses/:courseId/members/me', auth, isCourse, isCourseMember, async (req, res) => {
+    const { course, user } = req
 
     try {
-        const membership = await CourseMembership.deleteOne({ course: course._id, user: params.userId })
+        const membership = await CourseMembership.deleteOne({ course: course._id, user: user._id })
         res.status(200).send(membership)
     } catch (err) {
         res.status(400).json(err)
@@ -500,12 +500,12 @@ router.delete('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmi
     }
 })
 
-//Leave Course
-router.delete('/courses/:courseId/members/me', auth, isCourse, isCourseMember, async (req, res) => {
-    const { course, user } = req
+//Remove Member
+router.delete('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin, async (req, res) => {
+    const { course, params } = req
 
     try {
-        const membership = await CourseMembership.deleteOne({ course: course._id, user: user._id })
+        const membership = await CourseMembership.deleteOne({ course: course._id, user: params.userId })
         res.status(200).send(membership)
     } catch (err) {
         res.status(400).json(err)
