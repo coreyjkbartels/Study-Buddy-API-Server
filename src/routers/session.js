@@ -75,11 +75,16 @@ router.get('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async 
 //Get Session
 router.get('/courses/:courseId/sessions/:sessionId', auth, isCourse, isCourseMember, async (req, res) => {
     try {
-        const session = await Session.findById(req.params.sessionId)
+        const session = await Session.findOne({ _id: req.params.sessionId, course: req.course._id })
+
+        if (!session) {
+            return res.status(404).send({ error: 'Session not found' })
+        }
 
         res.status(200).send(session)
     } catch (error) {
         console.log(error)
+        res.status(500).send({ error: 'Internal server error' })
     }
 })
 

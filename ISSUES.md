@@ -101,7 +101,7 @@ before param paths.)
 
 ---
 
-## SB-4 — `GET /courses/:courseId/sessions/:sessionId` isn't course-scoped and hangs on error  ⬜
+## SB-4 — `GET /courses/:courseId/sessions/:sessionId` isn't course-scoped and hangs on error  ✅
 
 - **Severity:** Medium
 - **File:** `src/routers/session.js` — the "Get Session" handler
