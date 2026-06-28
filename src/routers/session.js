@@ -253,7 +253,7 @@ router.patch('/courses/:courseId/sessions/:sessionId/participants/me/:decision',
                 return
             }
 
-            if (participantDoc.status == 'waitlist') {
+            if (participantDoc.status == 'waitlisted') {
                 res.status(400).send('Session is currently at capacity')
                 return
             }
@@ -330,11 +330,13 @@ router.get('/courses/:courseId/sessions/:sessionId/messages',
             sentAt.$lte = query.before
         }
         if (Object.keys(sentAt).length > 0) {
-            filter.startsAt = sentAt
+            filter.sentAt = sentAt
         }
 
         try {
-            const messages = await SessionMessage.find(filter).skip(query?.offset).limit(query?.limit)
+            const offset = Math.max(0, parseInt(query?.offset) || 0)
+            const limit = Math.min(100, Math.max(1, parseInt(query?.limit) || 50))
+            const messages = await SessionMessage.find(filter).skip(offset).limit(limit)
             res.status(200).send(messages)
         } catch (error) {
             res.status(500).json(error)

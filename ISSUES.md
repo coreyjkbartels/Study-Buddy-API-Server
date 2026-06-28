@@ -122,7 +122,7 @@ response** and the request hangs.
 
 ---
 
-## SB-5 — Minor correctness: message date filter + RSVP waitlist enum  ⬜
+## SB-5 — Minor correctness: message date filter + RSVP waitlist enum  ✅
 
 - **Severity:** Low–Medium (silent no-ops)
 - **File:** `src/routers/session.js`
