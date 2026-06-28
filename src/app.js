@@ -1,4 +1,3 @@
-import './db/mongoose.js'
 import express from 'express'
 import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
@@ -35,7 +34,4 @@ app.use(
         },
     }))
 
-const port = process.env.PORT
-app.listen(port, () => {
-    console.log('Listening on port ' + port)
-})
+export default app

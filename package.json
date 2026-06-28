@@ -5,9 +5,10 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "env-cmd nodemon src/app.js",
-    "api": "npx http-server node_modules/swagger-editor-dist"
+    "start": "node src/server.js",
+    "dev": "env-cmd nodemon src/server.js",
+    "api": "npx http-server node_modules/swagger-editor-dist",
+    "test": "vitest"
   },
   "author": "",
   "license": "ISC",
@@ -16,7 +17,10 @@
     "env-cmd": "^11.0.0",
     "eslint": "^10.0.2",
     "globals": "^16.4.0",
-    "nodemon": "^3.1.10"
+    "mongodb-memory-server": "^11.2.0",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
