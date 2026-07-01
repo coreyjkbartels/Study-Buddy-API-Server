@@ -3,7 +3,13 @@ import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import Course from '../models/course.js'
 import CourseMembership from '../models/courseMembership.js'
+import Assignment from '../models/assignment.js'
+import AssignmentUserState from '../models/assignmentUserState.js'
+import Session from '../models/session.js'
+import SessionParticipant from '../models/sessionParticipant.js'
+import SessionMessage from '../models/sessionMessage.js'
 import { isCourseAdmin, isCourse, isCourseMember } from '../middleware/courseAccess.js'
+import AppError from '../assets/AppError.js'
 
 const router = new Router()
 
@@ -52,17 +58,22 @@ router.post('/courses', auth, async (req, res) => {
                 role: 'admin',
                 status: 'active'
             })
-            await courseMembership.save()
+
+            try {
+                await courseMembership.save()
+            } catch (memberErr) {
+                await course.deleteOne()
+                throw memberErr
+            }
 
             return res.status(201).send(course)
         } catch (err) {
             if (err?.code === 11000 && err?.keyPattern?.joinCode) continue
-            console.log(err)
-            return res.status(400).json(err)
+            throw err
         }
     }
 
-    return res.status(500).json({ error: 'Failed to generate unique join code' })
+    throw new AppError('INTERNAL_ERROR', { message: 'Failed to generate unique join code' })
 })
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -156,15 +167,26 @@ router.get('/courses', auth, async (req, res) => {  //Add more functionality lat
  *         description: Success
 */
 router.delete('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, res) => {
-    try {
-        await req.course.deleteOne()
-        await CourseMembership.deleteMany({ courseId: req.params.courseId })
+    const courseId = req.course._id
 
-        res.status(200).send('Success')
-    } catch (error) {
-        res.status(500).send(error)
-        console.log(error)
-    }
+    const sessions = await Session.find({ course: courseId }, '_id')
+    const sessionIds = sessions.map((s) => s._id)
+
+    await Promise.all([
+        SessionParticipant.deleteMany({ session: { $in: sessionIds } }),
+        SessionMessage.deleteMany({ course: courseId }),
+        AssignmentUserState.deleteMany({ course: courseId }),
+    ])
+
+    await Promise.all([
+        Session.deleteMany({ course: courseId }),
+        Assignment.deleteMany({ course: courseId }),
+        CourseMembership.deleteMany({ course: courseId }),
+    ])
+
+    await req.course.deleteOne()
+
+    res.status(204).send()
 })
 
 /**
@@ -215,26 +237,22 @@ router.patch('/courses/:courseId', auth, isCourse, isCourseAdmin, async (req, re
     })
 
     if (!isValid) {
-        res.status(400).send('Invalid Updates')
-        return
+        throw new AppError('INVALID_UPDATES')
     }
 
     if ((updates.courseName || updates.courseCode) && !updates.title) {
-        updates.title = `${updates.courseCode} - ${updates.courseName}`
+        const newCode = updates.courseCode ?? course.courseCode
+        const newName = updates.courseName ?? course.courseName
+        updates.title = `${newCode} - ${newName}`
     }
 
-    try {
-        await course.findOneAndUpdate(updates)
-
-        Object.keys(updates).forEach((key) => {
-            course[key] = updates[key]
-        })
-
-        res.status(200).send(course)
-    } catch (err) {
-        res.status(500).send(err)
-        console.log(err)
-    }
+    // A ValidationError from save() propagates to the central handler as a
+    // 400 VALIDATION_ERROR with per-field details.
+    Object.keys(updates).forEach((key) => {
+        course[key] = updates[key]
+    })
+    await course.save()
+    res.status(200).send(course)
 })
 
 /**
@@ -264,8 +282,7 @@ router.post('/courses/join/:joinCode', auth, async (req, res) => {
     const { user } = req
 
     if (!course) {
-        res.status(404).send('No Course Found For Code')
-        return
+        throw new AppError('COURSE_NOT_FOUND', { message: 'No course found for code' })
     }
 
     const data = {
@@ -279,18 +296,14 @@ router.post('/courses/join/:joinCode', auth, async (req, res) => {
         const membership = new CourseMembership(data)
         await membership.save()
         res.status(201).send('User has joined successfully')
-
     } catch (err) {
-        if (err?.code === 11000) {
-            const membership = await CourseMembership.findOne({ course: course._id, user: user._id })
-            if (membership.status == 'banned') {
-                res.status(403).send('User is banned from course')
-            } else {
-                res.status(400).send('User is already a member')
-            }
-            return
+        if (err?.code !== 11000) throw err
+
+        const membership = await CourseMembership.findOne({ course: course._id, user: user._id })
+        if (membership.status == 'banned') {
+            throw new AppError('COURSE_BANNED')
         }
-        console.log(err)
+        throw new AppError('CONFLICT', { message: 'User is already a member' })
     }
 })
 
@@ -331,11 +344,11 @@ router.patch('/courses/:courseId/joinCode', auth, isCourse, isCourseAdmin, async
             return res.status(201).send(joinCode)
         } catch (err) {
             if (err?.code === 11000 && err?.keyPattern?.joinCode) continue
-            console.log(err)
+            throw err
         }
     }
 
-    return res.status(500).json({ error: 'Failed to generate unique join code' })
+    throw new AppError('INTERNAL_ERROR', { message: 'Failed to generate unique join code' })
 })
 
 /**
@@ -380,17 +393,12 @@ router.patch('/courses/:courseId/joinCode', auth, isCourse, isCourseAdmin, async
 router.get('/courses/:courseId/members', auth, isCourse, isCourseMember, async (req, res) => {
     const { course } = req
 
-    try {
-        const members = await CourseMembership.find(
-            { course: course._id, status: 'active' },
-            { status: 0, courseId: 0, updatedAt: 0, __v: 0 })
-            .populate('user', 'username')
+    const members = await CourseMembership.find(
+        { course: course._id, status: 'active' },
+        { status: 0, courseId: 0, updatedAt: 0, __v: 0 })
+        .populate('user', 'username')
 
-        res.status(200).send(members)
-    } catch (err) {
-        console.log(err)
-        res.status(500).send('Summ happened🤷‍♂️')
-    }
+    res.status(200).send(members)
 })
 
 /**
@@ -442,8 +450,7 @@ router.get('/courses/:courseId/members/:userId', auth, isCourse, isCourseMember,
     const membership = await CourseMembership.findOne({ course: params.courseId, user: params.userId }, { course: 0, __v: 0 }).populate('user', 'username')
 
     if (!membership) {
-        res.status(400).send('User specified is not a member of course')
-        return
+        throw new AppError('NOT_FOUND', { message: 'User specified is not a member of course' })
     }
 
     res.status(200).send(membership)
@@ -454,69 +461,45 @@ router.patch('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin
     const { body: updates, course, params } = req
 
     const modifiable = ['role', 'status']
-    try {
 
-
-        if (!updates) {
-            res.status(400).send('No updates sent')
-            return
-        }
-
-        const isValid = Object.keys(updates).every((key) => {
-            return modifiable.includes(key)
-        })
-
-        if (!isValid) {
-            res.status(400).send('Invalid Updates')
-            return
-        }
-
-
-        const membership = await CourseMembership.findOneAndUpdate(
-            { course: course._id, user: params.userId },
-            updates,
-            { runValidators: true })
-
-        if (!membership) {
-            res.status(400).send('User specified is not a member of course')
-            return
-        }
-
-        Object.keys(updates).forEach((key) => {
-            membership[key] = updates[key]
-        })
-
-        res.status(200).send(membership)
-    } catch (err) {
-        res.status(400).json(err)
-        console.log(err)
+    if (!updates) {
+        throw new AppError('INVALID_UPDATES', { message: 'No updates sent' })
     }
+
+    const isValid = Object.keys(updates).every((key) => {
+        return modifiable.includes(key)
+    })
+
+    if (!isValid) {
+        throw new AppError('INVALID_UPDATES')
+    }
+
+    const membership = await CourseMembership.findOneAndUpdate(
+        { course: course._id, user: params.userId },
+        updates,
+        { runValidators: true, new: true })
+
+    if (!membership) {
+        throw new AppError('NOT_FOUND', { message: 'User specified is not a member of course' })
+    }
+
+    res.status(200).send(membership)
 })
 
 //Leave Course
 router.delete('/courses/:courseId/members/me', auth, isCourse, isCourseMember, async (req, res) => {
     const { course, user } = req
 
-    try {
-        const membership = await CourseMembership.deleteOne({ course: course._id, user: user._id })
-        res.status(200).send(membership)
-    } catch (err) {
-        res.status(400).json(err)
-        console.log(err)
-    }
+    const result = await CourseMembership.deleteOne({ course: course._id, user: user._id })
+    res.status(200).send(result)
 })
 
 //Remove Member
 router.delete('/courses/:courseId/members/:userId', auth, isCourse, isCourseAdmin, async (req, res) => {
     const { course, params } = req
 
-    try {
-        const membership = await CourseMembership.deleteOne({ course: course._id, user: params.userId })
-        res.status(200).send(membership)
-    } catch (err) {
-        res.status(400).json(err)
-        console.log(err)
-    }
+    const result = await CourseMembership.deleteOne({ course: course._id, user: params.userId })
+    res.status(200).send(result)
 })
 
 export default router
