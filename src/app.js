@@ -7,6 +7,7 @@ import sessionRouter from './routers/session.js'
 import courseRouter from './routers/course.js'
 import availabilityRouter from './routers/availability.js'
 import swaggerSpec from '../swagger.js'
+import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
 
@@ -33,5 +34,11 @@ app.use(
             persistAuthorization: true,
         },
     }))
+
+// Normalization layer — must be mounted last: the 404 catch-all turns unmatched
+// routes into an AppError, then errorHandler converts everything into the
+// { error: { code, message } } envelope.
+app.use(notFoundHandler)
+app.use(errorHandler)
 
 export default app

@@ -1,7 +1,7 @@
 import Router from 'express'
 import User from '../models/user.js'
 import auth from '../middleware/auth.js'
-import { sendValidationError } from '../assets/error.js'
+import AppError from '../assets/AppError.js'
 
 const router = new Router()
 
@@ -40,29 +40,19 @@ const router = new Router()
  *         description: Validation Errors
 */
 router.post('/users', async (req, res) => {
-    try {
-        const { body: data } = req
+    const { body: data } = req
 
-        data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-        const user = new User(data)
+    data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const user = new User(data)
 
-        await user.save()
-        const token = await user.generateAuthToken()
+    // A Mongoose ValidationError or an E11000 duplicate-key error here propagates
+    // to the central error handler, which maps them to VALIDATION_ERROR (with
+    // field details) and DUPLICATE_ACCOUNT respectively.
 
-        res.status(201).send({ user, token })
-    } catch (error) {
-        console.log(error)
-        if (error.name == 'ValidationError') {
-            sendValidationError(res, error)
-            return
-        }
+    await user.save()
+    const token = await user.generateAuthToken()
 
-        if (error.code === 11000) {
-            return res.status(409).send('Duplicate Account')
-        }
-
-        res.status(500).send({ name: error.name, message: error.message })
-    }
+    res.status(201).send({ user, token })
 })
 
 /**
@@ -122,7 +112,7 @@ router.get('/users', auth, async (req, res) => {
         filter.username = { $regex: query.q, $options: 'i' }
     }
 
-    const users = await User.find(filter, User.publicUserProjection())
+    const users = await User.find(filter, await User.publicUserProjection())
         .skip(parseInt(query.offset))
         .limit(parseInt(query.limit))
 
@@ -154,22 +144,18 @@ router.get('/users', auth, async (req, res) => {
  *                  
 */
 router.get('/user/:userId', auth, async (req, res) => {
-    try {
-        const user = await User.findById(
-            { _id: req.params.userId },
-            User.publicUserProjection()
-        )
+    const user = await User.findById(
+        { _id: req.params.userId },
+        await User.publicUserProjection()
+    )
 
-        if (!user) {
-            res.status(400).send({ Error: 'Invalid user id' })
-            return
-        }
-
-        res.status(200).send({ user })
-    } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+    // A malformed ObjectId throws a Mongoose CastError, which the central
+    // handler maps to 400 BAD_REQUEST.
+    if (!user) {
+        throw new AppError('USER_NOT_FOUND')
     }
+
+    res.status(200).send({ user })
 })
 
 /**
@@ -219,8 +205,8 @@ router.post('/user/sign-in', async (req, res) => {
 
         res.status(200).send({ user, token })
     } catch (error) {
-        console.log(error)
-        res.status(400).send({ Error: 'Bad Request' })
+        // Don't disclose which of email/password was wrong.
+        throw new AppError('INVALID_CREDENTIALS')
     }
 })
 
@@ -239,17 +225,12 @@ router.post('/user/sign-in', async (req, res) => {
  *         description: Signed Out Successfully
 */
 router.post('/user/sign-out', auth, async (req, res) => {
-    try {
-        req.user.tokens = req.user.tokens.filter((token) => {
-            return token.token !== req.token
-        })
-        await req.user.save()
+    req.user.tokens = req.user.tokens.filter((token) => {
+        return token.token !== req.token
+    })
+    await req.user.save()
 
-        res.status(200).send('Signed Out Successfully')
-    } catch (error) {
-        console.log(error)
-        res.status(500).send({ Error: 'Internal Server Error' })
-    }
+    res.status(200).send('Signed Out Successfully')
 })
 
 /**
@@ -291,35 +272,26 @@ router.post('/user/sign-out', auth, async (req, res) => {
  */
 router.patch('/users/me', auth, async (req, res) => {
     const mods = req.body
+    const props = Object.keys(mods)
 
-    if (mods.length === 0) {
-        res.status(400).send({ Error: 'Missing updates' })
+    if (props.length === 0) {
+        throw new AppError('INVALID_UPDATES', { message: 'No updates provided' })
     }
 
-    const props = Object.keys(mods)
     const modifiable = ['username', 'password', 'email', 'timezone']
-
     const isValid = props.every((prop) => modifiable.includes(prop))
 
     if (!isValid) {
-        return res.status(400).send({ error: 'Invalid updates.' })
+        throw new AppError('INVALID_UPDATES')
     }
 
-    try {
-        const user = req.user
-        props.forEach((prop) => user[prop] = mods[prop])
-        await user.save()
+    // A ValidationError from save() propagates to the central handler as a
+    // 400 VALIDATION_ERROR with per-field details.
+    const user = req.user
+    props.forEach((prop) => user[prop] = mods[prop])
+    await user.save()
 
-        res.status(200).send(user)
-    } catch (error) {
-        console.log(error)
-
-        if (error.name == 'ValidationError') {
-            sendValidationError(res, error)
-            return
-        }
-        res.status(400).send({ Error: 'Bad Request' })
-    }
+    res.status(200).send(user)
 })
 
 
@@ -336,14 +308,9 @@ router.patch('/users/me', auth, async (req, res) => {
  *         description: Account Deleted
  */
 router.delete('/users/me', auth, async (req, res) => {
-    try {
-        await req.user.deleteOne()
+    await req.user.deleteOne()
 
-        res.status(200).send('Account Deleted')
-    } catch (error) {
-        console.log(error)
-        res.status(500).json(error)
-    }
+    res.status(200).send('Account Deleted')
 })
 
 

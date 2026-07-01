@@ -1,18 +1,21 @@
 import User from '../models/user.js'
 import jwt from 'jsonwebtoken'
+import AppError from '../assets/AppError.js'
 
 const auth = async (req, res, next) => {
     try {
-        let token = req.header('Authorization')
-        token = token.replace('Bearer ', '')
+        const header = req.header('Authorization')
+        if (!header) {
+            throw new AppError('UNAUTHORIZED')
+        }
+        const token = header.replace('Bearer ', '')
 
         const decoded = jwt.verify(token, process.env.JSON_WEB_TOKEN_SECRET)
 
         const user = await User.findOne({ _id: decoded._id, 'tokens.token': token })
 
         if (!user) {
-            res.status(400).send({ Error: 'User does not exist' })
-            return
+            throw new AppError('UNAUTHORIZED')
         }
 
         req.token = token
@@ -21,7 +24,17 @@ const auth = async (req, res, next) => {
         next()
 
     } catch (error) {
-        res.status(401).send({ error: 'Unauthorized' })
+        // Token problems (missing header, bad/expired JWT) -> 401. Anything else
+        // (e.g. a DB failure) is unexpected and must reach the central handler as
+        // a 500 rather than be masked as an auth failure.
+        if (
+            error instanceof AppError ||
+            error?.name === 'JsonWebTokenError' ||
+            error?.name === 'TokenExpiredError'
+        ) {
+            return next(new AppError('UNAUTHORIZED'))
+        }
+        next(error)
     }
 }
 
