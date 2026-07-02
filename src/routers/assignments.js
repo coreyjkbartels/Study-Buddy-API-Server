@@ -420,15 +420,8 @@ router.get('/courses/:courseId/my/assignments',
 
         for (let assignment of assignments) {
             if (!assignment.userState) {
-                let userState = await AssignmentUserState.findOneAndUpdate(
-                    { user: user._id, assignment: assignment._id },
-                    {
-                        user: user._id,
-                        assignment: assignment._id,
-                        course: course._id,
-                        personalDueAt: assignment.dueAt
-                    },
-                    { upsert: true, new: true })
+                const userState = await AssignmentUserState.findOrCreate(
+                    assignment._id, user._id, course._id, assignment.dueAt)
 
                 assignment.userState = {
                     _id: userState._id,
@@ -491,16 +484,8 @@ router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
     async (req, res) => {
         const { body: mods, course, user, assignment } = req
 
-        let userState = await AssignmentUserState.findOne({ assignment: assignment._id, user: user._id })
-
-        if (!userState) {
-            userState = await AssignmentUserState.create({
-                assignment: assignment._id,
-                user: user._id,
-                course: course._id,
-                personalDueAt: assignment.dueAt
-            })
-        }
+        const userState = await AssignmentUserState.findOrCreate(
+            assignment._id, user._id, course._id, assignment.dueAt)
 
         if (!mods) {
             return res.status(200).send(userState)
@@ -624,15 +609,8 @@ router.get('/assignments', auth, async (req, res) => {
 
     for (let assignment of assignments) {
         if (!assignment.userState) {
-            let userState = await AssignmentUserState.findOneAndUpdate(
-                { user: user._id, assignment: assignment._id },
-                {
-                    user: user._id,
-                    assignment: assignment._id,
-                    course: assignment.course,
-                    personalDueAt: assignment.dueAt
-                },
-                { upsert: true, new: true })
+            const userState = await AssignmentUserState.findOrCreate(
+                assignment._id, user._id, assignment.course, assignment.dueAt)
 
             assignment.userState = {
                 _id: userState._id,
