@@ -10,7 +10,7 @@ export const isSession = async (req, res, next) => {
         return
     }
 
-    const session = await Session.findById(params.sessionId)
+    const session = await Session.findOne({ _id: params.sessionId, course: req.course._id })
 
     if (!session) {
         res.status(404).send('Session does not exist')

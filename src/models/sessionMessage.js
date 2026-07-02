@@ -35,7 +35,7 @@ const sessionMessageSchema = new Schema({
     deletedAt: Date
 }, { timestamps: { updatedAt: 'editedAt', createdAt: 'sentAt' } })
 
-sessionMessageSchema.index({ session: 1, createdAt: 1 })
+sessionMessageSchema.index({ session: 1, sentAt: 1 })
 
 const SessionMessage = model('SessionMessage', sessionMessageSchema)
 
