@@ -59,16 +59,29 @@ email is used. Never commit `.env`.
   error-handling middleware — not the current mix of strings/JSON/emoji.
 - Document new routes with `@openapi` JSDoc (only the course router is documented
   so far).
+- Use meaninful variable names
 
-## Known bugs to be aware of (details in ARCHITECTURE §3)
+## Behavioral Rules
 
-- `GET /courses/:courseId/sessions` doesn't filter by course (returns all).
-- `DELETE /courses/:courseId/members/me` is shadowed by `/members/:userId`.
-- `GET /courses` leaks `joinCode`.
-- Messages date filter sets `startsAt` on a model that has `sentAt`.
-- RSVP checks `'waitlist'` but the enum is `'waitlisted'`.
+- Functional programming preferred
+- Tests are required for features
+- No console.log in production code
+- Always review diffs before accepting.
+
+## Available Agents
+
+- /code-reviewer: Reviews code for quality
+- /doc-writer: Generates README files, API documentation, Architecture docs, User guides
+- /test-writer: Generates test cases
+
+Invoke by name in natural language ("use the doc-writer agent to document the
+course router") or @-mention the agent in your prompt.
+
+## Learning log
+
+`docs/learning-log.md` — append via /log at the end of each task.
 
 ## When you finish something
 
 Update status in `Study-Buddy/docs/ROADMAP.md`; add design issues to
-`ARCHITECTURE.md`.
+`ARCHITECTURE.md` and `ISSUES.md`.
