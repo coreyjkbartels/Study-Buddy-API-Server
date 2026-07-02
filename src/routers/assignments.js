@@ -5,6 +5,7 @@ import { isCourse, isCourseMember, isCourseModerator } from '../middleware/cours
 import { isAssignment } from '../middleware/assignmentAccess.js'
 import AssignmentUserState from '../models/assignmentUserState.js'
 import CourseMembership from '../models/courseMembership.js'
+import AppError from '../assets/AppError.js'
 
 const router = new Router()
 
@@ -48,12 +49,10 @@ router.post('/courses/:courseId/assignments',
         data.course = course._id
         data.source = courseMembership.role == 'member' ? 'community' : 'moderator'
 
-        try {
-            const assignment = await Assignment.create(data)
-            res.status(200).send(assignment)
-        } catch (error) {
-            res.status(400).json(error)
-        }
+        // A ValidationError from create() propagates to the central handler as a
+        // 400 VALIDATION_ERROR with per-field details.
+        const assignment = await Assignment.create(data)
+        res.status(200).send(assignment)
     })
 
 /**
@@ -120,12 +119,8 @@ router.get('/courses/:courseId/assignments',
             delete filter.status
         }
 
-        try {
-            const assignments = await Assignment.find(filter, { course: 0 })
-            res.status(200).send(assignments)
-        } catch (error) {
-            res.status(500).json(error)
-        }
+        const assignments = await Assignment.find(filter, { course: 0 })
+        res.status(200).send(assignments)
     })
 
 /**
@@ -160,21 +155,12 @@ router.get('/courses/:courseId/assignments',
 router.get('/courses/:courseId/assignments/:assignmentId',
     auth, isCourse, isCourseMember, isAssignment,
     async (req, res) => {
-        let { assignment } = req
+        const { assignment } = req
 
-        try {
-            await assignment.populate('createdBy', 'username')
-            await assignment.populate('course', 'title')
+        await assignment.populate('createdBy', 'username')
+        await assignment.populate('course', 'title')
 
-            if (!assignment) {
-                res.status(400).send('Invalid Assignment Id')
-            }
-
-            res.status(200).send(assignment)
-        } catch (error) {
-            console.log(error)
-            res.status(500).json(error)
-        }
+        res.status(200).send(assignment)
     })
 
 /**
@@ -220,8 +206,8 @@ router.patch('/courses/:courseId/assignments/:assignmentId',
     async (req, res) => {
         const { body: mods, courseMembership, user, assignment } = req
 
-        if (mods.length === 0) {
-            res.status(400).send({ Error: 'Missing updates' })
+        if (Object.keys(mods).length === 0) {
+            throw new AppError('INVALID_UPDATES', { message: 'Missing updates' })
         }
 
         const props = Object.keys(mods)
@@ -230,12 +216,11 @@ router.patch('/courses/:courseId/assignments/:assignmentId',
         const isValid = props.every((prop) => modifiable.includes(prop))
 
         if (!isValid) {
-            return res.status(400).send({ error: 'Invalid updates.' })
+            throw new AppError('INVALID_UPDATES')
         }
 
         if (!user._id.equals(assignment.createdBy) && courseMembership.role == 'member') {
-            res.status(403).json('Insufficient Authorization')
-            return
+            throw new AppError('FORBIDDEN', { message: 'Insufficient authorization to edit this assignment' })
         }
 
         if (courseMembership.role != 'member') {
@@ -244,13 +229,10 @@ router.patch('/courses/:courseId/assignments/:assignmentId',
 
         props.forEach((prop) => assignment[prop] = mods[prop])
 
-        try {
-            await assignment.save()
-            res.status(200).send(assignment)
-        } catch (error) {
-            res.status(500).json(error)
-        }
-
+        // A ValidationError from save() propagates to the central handler as a
+        // 400 VALIDATION_ERROR with per-field details.
+        await assignment.save()
+        res.status(200).send(assignment)
     })
 
 /**
@@ -288,13 +270,8 @@ router.post('/courses/:courseId/assignments/:assignmentId/stamp',
         const { assignment } = req
 
         assignment.source = 'moderator'
-        try {
-            await assignment.save()
-            res.status(200).send(assignment)
-        } catch (error) {
-            console.log(error)
-            res.status(500).json(error)
-        }
+        await assignment.save()
+        res.status(200).send(assignment)
     })
 
 /**
@@ -327,32 +304,18 @@ router.delete('/courses/:courseId/assignments/:assignmentId',
     async (req, res) => {
         const { courseMembership, assignment, user } = req
 
-        try {
-
-            if (!user._id.equals(assignment.createdBy) && courseMembership.role == 'member') {
-                res.status(403).json('Insufficient Authorization')
-                return
-            }
-
-            if (!assignment) {
-                res.status(404).send('Assignment Does Not Exist')
-                return
-            }
-
-            if (assignment.status == 'archived') {
-                res.status(400).send('Assignment Already Deleted')
-                return
-            }
-
-            assignment.status = 'archived'
-            await assignment.save()
-
-            res.status(200).send('Assignment Archived Successfully')
-        } catch (error) {
-            console.log(error)
-
-            res.status(400).send(error)
+        if (!user._id.equals(assignment.createdBy) && courseMembership.role == 'member') {
+            throw new AppError('FORBIDDEN', { message: 'Insufficient authorization to archive this assignment' })
         }
+
+        if (assignment.status == 'archived') {
+            throw new AppError('CONFLICT', { message: 'Assignment already archived' })
+        }
+
+        assignment.status = 'archived'
+        await assignment.save()
+
+        res.status(200).send('Assignment Archived Successfully')
     })
 
 /**
@@ -424,64 +387,58 @@ router.get('/courses/:courseId/my/assignments',
             delete filter.status
         }
 
-        try {
-            const assignments = await Assignment.aggregate([
-                { $match: filter },
-                {
-                    $lookup: {
-                        from: 'assignmentuserstates',
-                        localField: '_id',
-                        foreignField: 'assignment',
-                        as: 'userState'
-                    }
-                },
-                {
-                    $unwind: {
-                        path: '$userState',
-                        preserveNullAndEmptyArrays: true
-                    }
-                },
-                {
-                    $project: {
-                        __v: 0,
-                        updatedAt: 0,
-                        'userState.assignment': 0,
-                        'userState.course': 0,
-                        'userState.user': 0,
-                        'userState.createdAt': 0,
-                        'userState.updatedAt': 0,
-                        'userState.__v': 0
-                    }
+        const assignments = await Assignment.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: 'assignmentuserstates',
+                    localField: '_id',
+                    foreignField: 'assignment',
+                    as: 'userState'
                 }
-
-            ])
-
-            for (let assignment of assignments) {
-                if (!assignment.userState) {
-                    let userState = await AssignmentUserState.findOneAndUpdate(
-                        { user: user._id, assignment: assignment._id },
-                        {
-                            user: user._id,
-                            assignment: assignment._id,
-                            course: course._id,
-                            personalDueAt: assignment.dueAt
-                        },
-                        { upsert: true, new: true })
-
-                    assignment.userState = {
-                        _id: userState._id,
-                        personalDueAt: userState.personalDueAt,
-                        state: userState.state,
-                    }
+            },
+            {
+                $unwind: {
+                    path: '$userState',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    updatedAt: 0,
+                    'userState.assignment': 0,
+                    'userState.course': 0,
+                    'userState.user': 0,
+                    'userState.createdAt': 0,
+                    'userState.updatedAt': 0,
+                    'userState.__v': 0
                 }
             }
 
+        ])
 
-            res.status(200).send(assignments)
-        } catch (error) {
-            console.log(error)
-            res.status(500).json(error)
+        for (let assignment of assignments) {
+            if (!assignment.userState) {
+                let userState = await AssignmentUserState.findOneAndUpdate(
+                    { user: user._id, assignment: assignment._id },
+                    {
+                        user: user._id,
+                        assignment: assignment._id,
+                        course: course._id,
+                        personalDueAt: assignment.dueAt
+                    },
+                    { upsert: true, new: true })
+
+                assignment.userState = {
+                    _id: userState._id,
+                    personalDueAt: userState.personalDueAt,
+                    state: userState.state,
+                }
+            }
         }
+
+        res.status(200).send(assignments)
     })
 
 /**
@@ -555,18 +512,15 @@ router.patch('/courses/:courseId/assignments/:assignmentId/my-state',
         const isValid = props.every((prop) => modifiable.includes(prop))
 
         if (!isValid) {
-            return res.status(400).send('Invalid updates.')
+            throw new AppError('INVALID_UPDATES')
         }
 
         props.forEach((prop) => userState[prop] = mods[prop])
 
-        try {
-            await userState.save()
-            return res.status(200).send(userState)
-        } catch (error) {
-            console.log(error)
-            res.status(500).json(error)
-        }
+        // A ValidationError from save() propagates to the central handler as a
+        // 400 VALIDATION_ERROR with per-field details.
+        await userState.save()
+        return res.status(200).send(userState)
     })
 
 /**
@@ -623,78 +577,72 @@ router.get('/assignments', auth, async (req, res) => {
         delete filter.status
     }
 
-    try {
-        const assignments = await Assignment.aggregate([
-            { $match: filter },
-            {
-                $lookup: {
-                    from: 'courses',
-                    localField: 'course',
-                    foreignField: '_id',
-                    as: 'course'
-                }
-            },
-            {
-                $unwind: {
-                    path: '$course',
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
-                $lookup: {
-                    from: 'assignmentuserstates',
-                    localField: '_id',
-                    foreignField: 'assignment',
-                    as: 'userState'
-                }
-            },
-            {
-                $unwind: {
-                    path: '$userState',
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
-                $project: {
-                    __v: 0,
-                    updatedAt: 0,
-                    'userState.assignment': 0,
-                    'userState.course': 0,
-                    'userState.user': 0,
-                    'userState.createdAt': 0,
-                    'userState.updatedAt': 0,
-                    'userState.__v': 0
-                }
+    const assignments = await Assignment.aggregate([
+        { $match: filter },
+        {
+            $lookup: {
+                from: 'courses',
+                localField: 'course',
+                foreignField: '_id',
+                as: 'course'
             }
-
-        ])
-
-        for (let assignment of assignments) {
-            if (!assignment.userState) {
-                let userState = await AssignmentUserState.findOneAndUpdate(
-                    { user: user._id, assignment: assignment._id },
-                    {
-                        user: user._id,
-                        assignment: assignment._id,
-                        course: assignment.course,
-                        personalDueAt: assignment.dueAt
-                    },
-                    { upsert: true, new: true })
-
-                assignment.userState = {
-                    _id: userState._id,
-                    personalDueAt: userState.personalDueAt,
-                    state: userState.state,
-                }
+        },
+        {
+            $unwind: {
+                path: '$course',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: 'assignmentuserstates',
+                localField: '_id',
+                foreignField: 'assignment',
+                as: 'userState'
+            }
+        },
+        {
+            $unwind: {
+                path: '$userState',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                __v: 0,
+                updatedAt: 0,
+                'userState.assignment': 0,
+                'userState.course': 0,
+                'userState.user': 0,
+                'userState.createdAt': 0,
+                'userState.updatedAt': 0,
+                'userState.__v': 0
             }
         }
 
+    ])
 
-        res.status(200).send(assignments)
-    } catch (error) {
-        console.log(error)
-        res.status(500).json(error)
+    for (let assignment of assignments) {
+        if (!assignment.userState) {
+            let userState = await AssignmentUserState.findOneAndUpdate(
+                { user: user._id, assignment: assignment._id },
+                {
+                    user: user._id,
+                    assignment: assignment._id,
+                    course: assignment.course,
+                    personalDueAt: assignment.dueAt
+                },
+                { upsert: true, new: true })
+
+            assignment.userState = {
+                _id: userState._id,
+                personalDueAt: userState.personalDueAt,
+                state: userState.state,
+            }
+        }
     }
+
+    res.status(200).send(assignments)
 }
 )
 export default router
