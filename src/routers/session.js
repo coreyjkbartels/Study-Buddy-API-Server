@@ -2,7 +2,6 @@ import Router from 'express'
 import auth from '../middleware/auth.js'
 import Session from '../models/session.js'
 import { isCourse, isCourseMember } from '../middleware/courseAccess.js'
-import { sendValidationError } from '../assets/error.js'
 import { isSession, isSessionHost, isSessionParticipant } from '../middleware/sessionAccess.js'
 import SessionParticipant from '../models/sessionParticipant.js'
 import { isValidObjectId } from 'mongoose'
@@ -12,37 +11,23 @@ const router = new Router()
 
 //Create Session
 router.post('/courses/:courseId/sessions', auth, isCourse, isCourseMember, async (req, res) => {
-    try {
-        const { body: data, course, user } = req
+    const { body: data, course, user } = req
 
-        data.course = course._id
-        data.host = user._id
-        data.timezone = user.timezone
+    data.course = course._id
+    data.host = user._id
+    data.timezone = user.timezone
 
-        const session = new Session(data)
-        await session.save()
+    const session = new Session(data)
+    await session.save()
 
-        await SessionParticipant.create({
-            session: session._id,
-            user: user._id,
-            status: 'accepted',
-            respondedAt: new Date()
-        })
+    await SessionParticipant.create({
+        session: session._id,
+        user: user._id,
+        status: 'accepted',
+        respondedAt: new Date()
+    })
 
-        res.status(201).send(session)
-    } catch (error) {
-        console.log(error)
-        if (error.name == 'ValidationError') {
-            sendValidationError(res, error)
-            return
-        }
-
-        if (error.code === 11000) {
-            return res.status(409).send('Duplicate Account')
-        }
-
-        res.status(500).send({ name: error.name, message: error.message })
-    }
+    res.status(201).send(session)
 })
 
 //Get Sessions
@@ -94,8 +79,8 @@ router.patch('/courses/:courseId/sessions/:sessionId',
     async (req, res) => {
         const { body: mods, session } = req
 
-        if (mods.length === 0) {
-            res.status(400).send({ Error: 'Missing updates' })
+        if (Object.keys(mods).length === 0) {
+            return res.status(400).send({ error: 'Missing updates' })
         }
 
         const props = Object.keys(mods)
@@ -107,20 +92,10 @@ router.patch('/courses/:courseId/sessions/:sessionId',
             return res.status(400).send({ error: 'Invalid updates.' })
         }
 
-        try {
-            props.forEach((prop) => session[prop] = mods[prop])
-            await session.save()
+        props.forEach((prop) => session[prop] = mods[prop])
+        await session.save()
 
-            res.status(200).send(session)
-        } catch (error) {
-            console.log(error)
-
-            if (error.name == 'ValidationError') {
-                sendValidationError(res, error)
-                return
-            }
-            res.status(500).send('🤷‍♂️')
-        }
+        res.status(200).send(session)
     }
 )
 
