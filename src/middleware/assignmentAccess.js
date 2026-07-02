@@ -1,19 +1,18 @@
 import { isValidObjectId } from 'mongoose'
 import Assignment from '../models/assignment.js'
+import AppError from '../assets/AppError.js'
 
 export const isAssignment = async (req, res, next) => {
     const { params } = req
 
     if (!isValidObjectId(params.assignmentId)) {
-        res.status(400).send('Invalid ObjectId for Assignment')
-        return
+        return next(new AppError('BAD_REQUEST', { message: 'Invalid assignment id' }))
     }
 
-    const assignment = await Assignment.findById(params.assignmentId)
+    const assignment = await Assignment.findOne({ _id: params.assignmentId, course: req.course._id })
 
     if (!assignment) {
-        res.status(404).send('Assignment does not exist')
-        return
+        return next(new AppError('ASSIGNMENT_NOT_FOUND'))
     }
 
     req.assignment = assignment
